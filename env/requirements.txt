@@ -7,8 +7,7 @@ scipy
 
 # Astronomy
 astropy
-git+https://github.com/radio-astro-tools/spectral-cube.git
-git+https://github.com/phangs-scouse/scousepy.git
+spectral-cube
 
 # Jupyter ecosystem
 notebook

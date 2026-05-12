@@ -131,7 +131,7 @@
     "**/.venv": true
   },
   "window.zoomLevel": 0,
-  "workbench.colorTheme": "Default Dark+",
+  "workbench.colorTheme": "Dark+",
   "workbench.editorAssociations": {
     "*.ipynb": "jupyter-notebook"
   },
