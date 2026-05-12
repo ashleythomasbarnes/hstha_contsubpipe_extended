@@ -1,0 +1,20 @@
+# Core scientific stack
+numpy
+scipy
+pandas
+matplotlib
+scipy
+
+# Astronomy
+astropy
+git+https://github.com/radio-astro-tools/spectral-cube.git
+git+https://github.com/phangs-scouse/scousepy.git
+
+# Jupyter ecosystem
+notebook
+ipykernel
+
+# Configuration / utilities
+pyyaml
+tqdm
+python-dotenv

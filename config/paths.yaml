@@ -1,0 +1,38 @@
+# ================================================================
+# paths.yaml — Project filesystem configuration
+# ================================================================
+# This file tells the project where things live on disk.
+#
+# Rules:
+# - Keys can be renamed, expanded, or deleted as needed.
+# - Values may be relative (to project root) or absolute paths.
+# - "~" and environment variables ("$HOME") are allowed.
+# - Directories listed here will be auto-created.
+# - Nothing in this file should depend on domain-specific logic.
+#
+# Add any groups of paths you like (e.g., "data", "results", "external").
+# These become available automatically in the context used by templates.
+# ==============================================================
+
+data:
+  core: "data/core"            # primary research data or raw inputs
+  products: "data/products"    # derived, cleaned, or processed data
+  scratch: "data/scratch"      # temporary outputs or caches
+
+hst:
+  image_root: "/lustre/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images"
+
+contsub:
+  output_root: "/lustre/opsw/work/abarnes/phangs/HST_WORK/data_contsub"
+
+notebooks: "notebooks"         # Jupyter notebooks
+figures: "figures"             # plots for papers
+tables: "tables"               # tables for papers
+src: "src"                     # analysis and utility code
+pipelines: "pipelines"         # workflow definitions (optional)
+presentations: "presentations" # presentations for papers
+manuscripts: "manuscripts"     # manuscripts
+
+# Optional external data sources (edit per project)
+external:
+  root: "" # "/path/to/external/data"

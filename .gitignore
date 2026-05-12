@@ -1,0 +1,66 @@
+# -----------------------------------------
+# Python
+# -----------------------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# -----------------------------------------
+# Environments
+# -----------------------------------------
+.venv/
+.env/
+.envrc
+pip-wheel-metadata/
+.env_template
+
+# -----------------------------------------
+# Jupyter / Notebooks
+# -----------------------------------------
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+*.nbconvert.ipynb
+
+# -----------------------------------------
+# Data (local only, don't sync large files)
+# -----------------------------------------
+data/core/*
+data/products/*
+data/scratch/*
+!data/core/.gitkeep
+!data/products/.gitkeep
+!data/scratch/.gitkeep
+
+# -----------------------------------------
+# LLM Tools
+# -----------------------------------------
+src/hstha_contsubpipe_extended/core/llm.py
+src/hstha_contsubpipe_extended/llm_tools/
+
+# -----------------------------------------
+# OS / Editors
+# -----------------------------------------
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+__MACOSX/
+.vscode/*
+!.vscode/settings.json
+
+# -----------------------------------------
+# Logs / Temp / Caches
+# -----------------------------------------
+*.log
+*.tmp
+*.bak
+.cache/
+logs/
+tmp/
