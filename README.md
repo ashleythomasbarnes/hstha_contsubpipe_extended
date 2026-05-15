@@ -129,7 +129,8 @@ defaults:
   require_errors: true
   narrowband_width_header: "PHOTBW"
   narrowband_widths: {}
-  nii_to_halpha: 0.0
+  nii_to_halpha: 0.25
+  output_unit: "erg/s/cm2/arcsec2"
 ```
 
 If file discovery finds more than one plausible file, add an override. Examples:
@@ -149,7 +150,7 @@ overrides:
     overwrite: true
 
   ngc4321:
-    nii_to_halpha: 0.25
+    nii_to_halpha: 0.15
     narrowband_widths:
       f657n: 121.0
 ```
@@ -195,8 +196,10 @@ H-alpha product is:
 halpha = contsub / (1 + nii_to_halpha)
 ```
 
-The default is `0.0`, which leaves the H-alpha product equal to the raw
-continuum-subtracted product until you choose a global or per-galaxy value.
+The default is `0.25`, following the fixed 25% correction adopted as a simple
+first-pass setting. See the PHANGS-Hα processing discussion in
+[Razza et al. 2026, arXiv:2604.25627](https://arxiv.org/abs/2604.25627).
+Override `nii_to_halpha` globally or per galaxy if a different value is needed.
 
 ## Method
 
@@ -226,11 +229,14 @@ weight_f814w = abs(PHOTPLAM_f555w - PHOTPLAM_narrow) / abs(PHOTPLAM_f555w - PHOT
 
 8. Propagates the continuum and continuum-subtracted errors in quadrature.
 9. Converts continuum-subtracted, continuum, and error maps from
-   `erg/s/cm2/A/pixel` to `erg/s/cm2/pixel` using the narrowband width from
+   `erg/s/cm2/A/pixel` to integrated flux using the narrowband width from
    `PHOTBW` or `narrowband_widths`.
-10. Writes the raw continuum-subtracted flux products and the fixed-[NII]
+10. Divides by the FITS WCS pixel area so the final maps are surface brightness
+    in `1e-20 erg/s/cm2/arcsec2` by default. Set `output_unit:
+    "erg/s/cm2/pixel"` in `config/galaxies.yaml` to keep per-pixel fluxes.
+11. Writes the raw continuum-subtracted flux products and the fixed-[NII]
     H-alpha products.
-11. Writes `contsub_manifest.csv` summarizing inputs, outputs, weights, and failures.
+12. Writes `contsub_manifest.csv` summarizing inputs, outputs, weights, and failures.
 
 The code checks that all three image arrays have the same shape. If a target
 fails because shapes differ, that galaxy needs a later reprojection step before

@@ -468,6 +468,64 @@ def convert_flux_density_to_flux(
     return out
 
 
+def pixel_area_arcsec2(header: fits.Header) -> float:
+    """Return the projected pixel area in square arcseconds from FITS WCS keywords."""
+
+    if all(key in header for key in ("CD1_1", "CD1_2", "CD2_1", "CD2_2")):
+        area_deg2 = abs(
+            float(header["CD1_1"]) * float(header["CD2_2"])
+            - float(header["CD1_2"]) * float(header["CD2_1"])
+        )
+    elif all(key in header for key in ("CD1_1", "CD2_2")):
+        area_deg2 = abs(float(header["CD1_1"]) * float(header["CD2_2"]))
+    elif all(key in header for key in ("PC1_1", "PC1_2", "PC2_1", "PC2_2", "CDELT1", "CDELT2")):
+        pc_det = float(header["PC1_1"]) * float(header["PC2_2"]) - float(header["PC1_2"]) * float(
+            header["PC2_1"]
+        )
+        area_deg2 = abs(pc_det * float(header["CDELT1"]) * float(header["CDELT2"]))
+    elif all(key in header for key in ("CDELT1", "CDELT2")):
+        area_deg2 = abs(float(header["CDELT1"]) * float(header["CDELT2"]))
+    elif "CD1_1" in header:
+        area_deg2 = abs(float(header["CD1_1"])) ** 2
+    elif "PC1_1" in header:
+        area_deg2 = abs(float(header["PC1_1"])) ** 2
+    else:
+        raise KeyError("Cannot determine pixel area from CD, PC+CDELT, or CDELT WCS keywords")
+
+    return area_deg2 * 3600.0**2
+
+
+def convert_perpix_to_perarcsec(hdu: fits.PrimaryHDU) -> fits.PrimaryHDU:
+    """Convert integrated flux per pixel to surface brightness per arcsec squared."""
+
+    out = hdu.copy()
+    pix_area = pixel_area_arcsec2(out.header)
+    out.data = np.asarray(out.data, dtype=np.float32) / pix_area
+    out.header["BUNIT"] = ("1e-20 erg/s/cm2/arcsec2", "Surface brightness")
+    out.header["PHYSUNIT"] = ("erg/s/cm2/arcsec2", "Data are scaled by 1e-20")
+    out.header["CSPIXA2"] = (float(pix_area), "Pixel area in arcsec2")
+    return out
+
+
+def convert_output_units(hdu: fits.PrimaryHDU, settings: Mapping[str, Any]) -> fits.PrimaryHDU:
+    """Convert final products to the configured output unit."""
+
+    output_unit = str(settings.get("output_unit", "erg/s/cm2/arcsec2")).lower()
+    aliases = {
+        "erg/s/cm2/arcsec2",
+        "ergcm2s/arcsec^2",
+        "erg/s/cm^2/arcsec^2",
+        "surface_brightness",
+    }
+    if output_unit in aliases:
+        return convert_perpix_to_perarcsec(hdu)
+    if output_unit in {"erg/s/cm2/pixel", "erg/s/cm^2/pixel", "per_pixel"}:
+        return hdu
+    raise ValueError(
+        f"Unsupported output_unit={output_unit!r}; use 'erg/s/cm2/arcsec2' or 'erg/s/cm2/pixel'"
+    )
+
+
 def get_narrowband_width(
     narrow_hdu: fits.PrimaryHDU, narrow_filter: str, settings: Mapping[str, Any]
 ) -> float:
@@ -886,6 +944,11 @@ def run_galaxy(
             products[continuum_error_file] = None
             continuum_file = None
             continuum_error_file = None
+
+        products = {
+            path: convert_output_units(hdu, settings) if hdu is not None else None
+            for path, hdu in products.items()
+        }
 
         for path, hdu in products.items():
             if hdu is None:

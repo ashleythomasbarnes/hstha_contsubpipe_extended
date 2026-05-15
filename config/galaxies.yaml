@@ -20,12 +20,13 @@ defaults:
   narrow_filters: ["f657n", "f658n"]
   preferred_instruments: ["uvis", "acs"]
   hdu_index: 0
-  overwrite: false
+  overwrite: true
   write_continuum: true
   require_errors: true
   narrowband_width_header: "PHOTBW"
   narrowband_widths: {}
-  nii_to_halpha: 0.0
+  nii_to_halpha: 0.25
+  output_unit: "erg/s/cm2/arcsec2"
 
 galaxies:
   - ic5332
