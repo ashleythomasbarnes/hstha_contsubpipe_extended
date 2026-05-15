@@ -3,10 +3,12 @@
 A small, configuration-driven pipeline for first-pass HST narrowband continuum
 subtraction of the PHANGS HST sample.
 
-The current implementation intentionally does the plain tested workflow only:
-linear-space continuum interpolation between F555W and F814W, followed by
-subtraction from F657N or F658N. It does not yet do anchoring, PSF matching,
-reprojection, or log-space subtraction.
+The current implementation keeps to a plain no-MUSE workflow: zero-to-NaN
+preprocessing, narrowband padding removal, foreground extinction correction,
+linear-space continuum interpolation between F555W and F814W, propagated error
+maps, conversion to integrated flux, and a configurable fixed [NII] correction.
+It does not yet do anchoring, PSF matching, reprojection, or log-space
+subtraction.
 
 ## Directory Layout
 
@@ -25,8 +27,12 @@ Outputs are written to:
 The main products are:
 
 ```text
-{galaxy}_{narrow_filter}_contsub_linear.fits
-{galaxy}_{narrow_filter}_continuum_linear.fits
+{galaxy}_{narrow_filter}_contsub_flux_linear.fits
+{galaxy}_{narrow_filter}_contsub_flux_err_linear.fits
+{galaxy}_{narrow_filter}_continuum_flux_linear.fits
+{galaxy}_{narrow_filter}_continuum_flux_err_linear.fits
+{galaxy}_{narrow_filter}_halpha_flux_nii_corr_linear.fits
+{galaxy}_{narrow_filter}_halpha_flux_nii_corr_err_linear.fits
 contsub_manifest.csv
 ```
 
@@ -99,6 +105,7 @@ The default HST input glob is in `config/files.yaml`:
 ```yaml
 file_templates:
   hst_image_glob: "{hst.image_root}/{search_galaxy}/*{filter_digits}*/{search_galaxy}_*_{filter}_exp_drc_sci.fits"
+  hst_error_glob: "{hst.image_root}/{search_galaxy}/*{filter_digits}*/{search_galaxy}_*_{filter}_err_drc_wht.fits"
 ```
 
 For `ngc5068` and `f658n`, this becomes a search like:
@@ -119,6 +126,10 @@ defaults:
   hdu_index: 0
   overwrite: false
   write_continuum: true
+  require_errors: true
+  narrowband_width_header: "PHOTBW"
+  narrowband_widths: {}
+  nii_to_halpha: 0.0
 ```
 
 If file discovery finds more than one plausible file, add an override. Examples:
@@ -127,13 +138,20 @@ If file discovery finds more than one plausible file, add an override. Examples:
 overrides:
   ngc5068:
     f658n_file: "/full/path/to/ngc5068_uvis_f658n_exp_drc_sci.fits"
+    f658n_error_file: "/full/path/to/ngc5068_uvis_f658n_err_drc_wht.fits"
 
   ngc2903:
     preferred_instruments: ["acs", "uvis"]
 
   ngc628c:
     search_galaxy: "ngc628c"
+    sample_name: "ngc628"
     overwrite: true
+
+  ngc4321:
+    nii_to_halpha: 0.25
+    narrowband_widths:
+      f657n: 121.0
 ```
 
 Use filter-specific keys for exact files:
@@ -143,16 +161,57 @@ f555w_file: "/full/path/to/file.fits"
 f814w_file: "/full/path/to/file.fits"
 f657n_file: "/full/path/to/file.fits"
 f658n_file: "/full/path/to/file.fits"
+f555w_error_file: "/full/path/to/error_file.fits"
+f814w_error_file: "/full/path/to/error_file.fits"
+f657n_error_file: "/full/path/to/error_file.fits"
+f658n_error_file: "/full/path/to/error_file.fits"
 ```
+
+### Foreground Extinction
+
+Foreground extinction is configured in `config/params.yaml`:
+
+```yaml
+foreground_extinction:
+  enabled: true
+  sample_table_path: "/path/to/phangs_sample_table_v1p6.fits"
+  galaxy_column: "name"
+  ebv_column: "mwext_sf11"
+  r_v: 3.1
+```
+
+The code reads E(B-V), applies a CCM89 foreground correction at each filter's
+`PHOTPLAM`, and propagates the same correction to the error maps. If a galaxy
+uses a subfield name such as `ngc628c`, set `sample_name` under that galaxy's
+override so the sample-table row can be found.
+
+### Fixed [NII] Correction
+
+The fixed [NII] correction is controlled by `nii_to_halpha` in
+`config/galaxies.yaml`. It is interpreted as total `[NII] / H-alpha`, and the
+H-alpha product is:
+
+```text
+halpha = contsub / (1 + nii_to_halpha)
+```
+
+The default is `0.0`, which leaves the H-alpha product equal to the raw
+continuum-subtracted product until you choose a global or per-galaxy value.
 
 ## Method
 
 For each galaxy, the pipeline:
 
-1. Resolves F555W, F814W, and the first available narrowband among F657N/F658N.
+1. Resolves F555W, F814W, the first available narrowband among F657N/F658N, and
+   matching inverse-variance error images.
 2. Opens HDU 0 by default.
-3. Converts each image to flux density with `data * PHOTFLAM * 1e20`.
-4. Computes a linear continuum estimate at the narrowband pivot wavelength:
+3. Converts exact zero science pixels to NaN and crops all images to remove
+   NaN padding around the narrowband image.
+4. Converts inverse-variance maps to 1-sigma errors with `sqrt(1 / weight)`.
+5. Converts science and error images to flux density with
+   `data * PHOTFLAM * 1e20`.
+6. Applies the configured foreground extinction correction.
+7. Computes a linear continuum estimate at the narrowband pivot wavelength:
 
 ```text
 continuum = weight_f555w * f555w + weight_f814w * f814w
@@ -165,8 +224,13 @@ weight_f555w = abs(PHOTPLAM_f814w - PHOTPLAM_narrow) / abs(PHOTPLAM_f555w - PHOT
 weight_f814w = abs(PHOTPLAM_f555w - PHOTPLAM_narrow) / abs(PHOTPLAM_f555w - PHOTPLAM_f814w)
 ```
 
-5. Writes `narrowband - continuum` as a float32 FITS image.
-6. Writes `contsub_manifest.csv` summarizing inputs, outputs, weights, and failures.
+8. Propagates the continuum and continuum-subtracted errors in quadrature.
+9. Converts continuum-subtracted, continuum, and error maps from
+   `erg/s/cm2/A/pixel` to `erg/s/cm2/pixel` using the narrowband width from
+   `PHOTBW` or `narrowband_widths`.
+10. Writes the raw continuum-subtracted flux products and the fixed-[NII]
+    H-alpha products.
+11. Writes `contsub_manifest.csv` summarizing inputs, outputs, weights, and failures.
 
 The code checks that all three image arrays have the same shape. If a target
 fails because shapes differ, that galaxy needs a later reprojection step before

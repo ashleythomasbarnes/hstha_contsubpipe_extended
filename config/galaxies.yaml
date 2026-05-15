@@ -10,6 +10,7 @@
 #   ngc5068:
 #     overwrite: true
 #     f658n_file: "/full/path/to/specific_ngc5068_f658n_file.fits"
+#     f658n_error_file: "/full/path/to/specific_ngc5068_f658n_err_drc_wht.fits"
 #   ngc2903:
 #     preferred_instruments: ["acs", "uvis"]
 # ================================================================
@@ -21,6 +22,10 @@ defaults:
   hdu_index: 0
   overwrite: false
   write_continuum: true
+  require_errors: true
+  narrowband_width_header: "PHOTBW"
+  narrowband_widths: {}
+  nii_to_halpha: 0.0
 
 galaxies:
   - ic5332
@@ -98,27 +103,36 @@ galaxies:
 overrides:
     ngc1097:
       f657n_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc1097/uvisf657n_25aug2025/ngc1097_uvis_f657n_exp_drc_sci.fits"
+      f657n_error_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc1097/uvisf657n_25aug2025/ngc1097_uvis_f657n_err_drc_wht.fits"
 
     ngc1559:
       f657n_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc1559/uvisf657n/ngc1559_uvis_f657n_exp_drc_sci.fits"
+      f657n_error_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc1559/uvisf657n/ngc1559_uvis_f657n_err_drc_wht.fits"
 
     ngc4571:
       f657n_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc4571/uvisf657n/ngc4571_uvis_f657n_exp_drc_sci.fits"
+      f657n_error_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc4571/uvisf657n/ngc4571_uvis_f657n_err_drc_wht.fits"
 
     ngc4826:
       f657n_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc4826/uvisf657n/ngc4826_uvis_f657n_exp_drc_sci.fits"
+      f657n_error_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc4826/uvisf657n/ngc4826_uvis_f657n_err_drc_wht.fits"
 
     ic1954:
       f657n_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ic1954/uvisf657n_17457_17502/ic1954_uvis_f657n_exp_drc_sci.fits"
+      f657n_error_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ic1954/uvisf657n_17457_17502/ic1954_uvis_f657n_err_drc_wht.fits"
 
     ngc1792:
       f657n_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc1792/uvisf657n_17457_17502/ngc1792_uvis_f657n_exp_drc_sci.fits"
+      f657n_error_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc1792/uvisf657n_17457_17502/ngc1792_uvis_f657n_err_drc_wht.fits"
 
     ngc2775:
       f657n_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc2775/uvisf657n/ngc2775_uvis_f657n_exp_drc_sci.fits"
+      f657n_error_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc2775/uvisf657n/ngc2775_uvis_f657n_err_drc_wht.fits"
 
     ngc685:
       f657n_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc685/uvis657n_17457_17502/ngc685_uvis_f657n_exp_drc_sci.fits"
+      f657n_error_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc685/uvis657n_17457_17502/ngc685_uvis_f657n_err_drc_wht.fits"
 
     ngc2835:
       f658n_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc2835/uvisf658n_match/ngc2835_uvis_f658n_exp_drc_sci.fits"
+      f658n_error_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc2835/uvisf658n_match/ngc2835_uvis_f658n_err_drc_wht.fits"

@@ -38,8 +38,13 @@ file_templates:
   # The search_galaxy value defaults to galaxy but can be overridden in
   # config/galaxies.yaml if the directory name differs from the output name.
   hst_image_glob: "{hst.image_root}/{search_galaxy}/*{filter_digits}*/{search_galaxy}_*_{filter}_exp_drc_sci.fits"
+  hst_error_glob: "{hst.image_root}/{search_galaxy}/*{filter_digits}*/{search_galaxy}_*_{filter}_err_drc_wht.fits"
 
 outputs:
-  contsub: "{contsub.output_root}/{galaxy}_{narrow_filter}_contsub_{contsub_space}.fits"
-  continuum: "{contsub.output_root}/{galaxy}_{narrow_filter}_continuum_{contsub_space}.fits"
+  contsub: "{contsub.output_root}/{galaxy}_{narrow_filter}_contsub_flux_{contsub_space}.fits"
+  continuum: "{contsub.output_root}/{galaxy}_{narrow_filter}_continuum_flux_{contsub_space}.fits"
+  contsub_error: "{contsub.output_root}/{galaxy}_{narrow_filter}_contsub_flux_err_{contsub_space}.fits"
+  continuum_error: "{contsub.output_root}/{galaxy}_{narrow_filter}_continuum_flux_err_{contsub_space}.fits"
+  halpha: "{contsub.output_root}/{galaxy}_{narrow_filter}_halpha_flux_nii_corr_{contsub_space}.fits"
+  halpha_error: "{contsub.output_root}/{galaxy}_{narrow_filter}_halpha_flux_nii_corr_err_{contsub_space}.fits"
   manifest: "{contsub.output_root}/contsub_manifest.csv"
