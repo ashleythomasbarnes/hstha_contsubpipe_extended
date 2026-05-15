@@ -95,4 +95,23 @@ galaxies:
   - ngc6300
   - ngc7456
 
-overrides: {}
+overrides: {
+    ngc1097:
+      f657n_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc1097/uvisf657n_25aug2025/ngc1097_uvis_f657n_exp_drc_sci.fits"
+    ngc1559:
+      f657n_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc1559/uvisf657n/ngc1559_uvis_f657n_exp_drc_sci.fits"
+    ngc4571:
+      f657n_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc4571/uvisf657n/ngc4571_uvis_f657n_exp_drc_sci.fits"
+    ngc4826:
+      f657n_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc4826/uvisf657n/ngc4826_uvis_f657n_exp_drc_sci.fits"
+    ic1954:
+      f657n_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ic1954/uvisf657n_17457_17502/ic1954_uvis_f657n_exp_drc_sci.fits"
+    ngc1792:
+      f657n_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc1792/uvisf657n_17457_17502/ngc1792_uvis_f657n_exp_drc_sci.fits"
+    ngc2775:
+      f657n_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc2775/uvisf657n/ngc2775_uvis_f657n_exp_drc_sci.fits"
+    ngc685:
+      f657n_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc685/uvis657n_17457_17502/ngc685_uvis_f657n_exp_drc_sci.fits"
+    ngc2835:
+      f658n_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc2835/uvisf658n_match/ngc2835_uvis_f658n_exp_drc_sci.fits"
+}
