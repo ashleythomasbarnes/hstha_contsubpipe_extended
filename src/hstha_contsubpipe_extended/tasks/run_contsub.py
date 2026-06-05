@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from hstha_contsubpipe_extended.contsub import ContsubResult, run_all
+from hstha_contsubpipe_extended.pipeline import ContsubResult, run_all
 
 
 TASK_NAME = "run_contsub"
@@ -11,6 +11,7 @@ def run(
     dry_run: bool = False,
     overwrite: bool | None = None,
     keep_going: bool = True,
+    stage_names: list[str] | None = None,
 ) -> list[ContsubResult]:
     """Run the configured linear HST continuum-subtraction pipeline."""
 
@@ -19,4 +20,5 @@ def run(
         dry_run=dry_run,
         overwrite=overwrite,
         keep_going=keep_going,
+        stage_names=stage_names,
     )

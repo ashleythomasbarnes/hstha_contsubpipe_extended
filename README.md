@@ -15,7 +15,8 @@ subtraction.
 - `config/paths.yaml` - root input and output directories.
 - `config/files.yaml` - filename and glob templates.
 - `config/galaxies.yaml` - galaxy list, defaults, and per-galaxy overrides.
-- `src/hstha_contsubpipe_extended/contsub.py` - continuum-subtraction code and CLI.
+- `src/hstha_contsubpipe_extended/pipeline/` - staged continuum-subtraction pipeline.
+- `src/hstha_contsubpipe_extended/pipeline/cli.py` - `hstha-contsub` command-line entry point.
 - `src/hstha_contsubpipe_extended/tasks/run_contsub.py` - task-registry wrapper.
 
 Outputs are written to:
@@ -34,7 +35,14 @@ The main products are:
 {galaxy}_{narrow_filter}_halpha_flux_nii_corr_linear.fits
 {galaxy}_{narrow_filter}_halpha_flux_nii_corr_err_linear.fits
 contsub_manifest.csv
+logs/contsub_run_{run_id}.log
+logs/contsub_run_{run_id}.jsonl
 ```
+
+Each run writes a timestamped human-readable audit log and a matching JSONL
+audit stream. The logs include the selected stages, run timing, per-galaxy
+settings, input/output paths, bandpass values and sources, derived weights, and
+failure messages.
 
 ## Setup
 
@@ -83,6 +91,48 @@ The same workflow is also available through the task registry:
 ```bash
 python -c "from hstha_contsubpipe_extended.tasks import run_task; run_task('run_contsub', galaxies=['ngc5068'], dry_run=True)"
 ```
+
+## Pipeline Structure
+
+The continuum-subtraction workflow is implemented as a small staged package
+under `src/hstha_contsubpipe_extended/pipeline/`:
+
+- `galaxy_config.py` loads the target list, defaults, and overrides.
+- `discovery.py` resolves science and error FITS files from `files.yaml`.
+- `fits_ops.py`, `bandpass.py`, `extinction.py`, and `subtraction.py` hold the
+  image transforms and science calculations.
+- `products.py` builds and writes output FITS products.
+- `stages.py` registers the named pipeline stages.
+- `runner.py` runs one galaxy or the configured sample.
+
+The default stage order is:
+
+```text
+resolve_inputs
+plan_outputs
+skip_existing_outputs
+load_images
+load_errors
+preprocess
+resolve_bandpasses
+calibrate_flux_density
+apply_foreground_extinction
+subtract_continuum
+build_products
+write_outputs
+```
+
+The default behavior is configured in `config/params.yaml`:
+
+```yaml
+contsub_pipeline:
+  stages: null
+  disabled_stages: []
+```
+
+Set `stages` to an explicit ordered list to run a custom workflow, or list
+stage names under `disabled_stages` to remove them from the default sequence.
+Unknown stage names raise a clear error before any galaxy is processed.
 
 ## Configuration
 
@@ -243,7 +293,7 @@ Override `nii_to_halpha` globally or per galaxy if a different value is needed.
 
 ## Method
 
-For each galaxy, the pipeline:
+For each galaxy, the default stage sequence:
 
 1. Resolves F555W, F814W, the first available narrowband among F657N/F658N, and
    matching inverse-variance error images.
@@ -279,6 +329,7 @@ weight_f814w = abs(pivot_f555w - pivot_narrow) / abs(pivot_f555w - pivot_f814w)
 12. Writes the raw continuum-subtracted flux products and the fixed-[NII]
     H-alpha products.
 13. Writes `contsub_manifest.csv` summarizing inputs, outputs, weights, and failures.
+14. Writes timestamped text and JSONL audit logs under `logs/`, including dry runs.
 
 The code checks that all three image arrays have the same shape. If a target
 fails because shapes differ, that galaxy needs a later reprojection step before

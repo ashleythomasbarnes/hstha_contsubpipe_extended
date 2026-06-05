@@ -1,4 +1,4 @@
-__all__ = ["core", "tasks", "plotting"]
+__all__ = ["core", "pipeline", "plotting", "tasks"]
 
 try:
     from importlib.metadata import PackageNotFoundError, version

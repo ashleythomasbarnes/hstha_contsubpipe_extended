@@ -26,7 +26,7 @@ dependencies = [
 ]
 
 [project.scripts]
-hstha-contsub = "hstha_contsubpipe_extended.contsub:main"
+hstha-contsub = "hstha_contsubpipe_extended.pipeline.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/your-username/hstha_contsubpipe_extended"

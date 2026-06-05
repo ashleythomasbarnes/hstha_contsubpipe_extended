@@ -55,5 +55,9 @@ bandpass:
   header_photflam_key: "PHOTFLAM"
   fallback_to_header: true
 
+contsub_pipeline:
+  stages: null
+  disabled_stages: []
+
 placeholders:
   project_name: "my_project"

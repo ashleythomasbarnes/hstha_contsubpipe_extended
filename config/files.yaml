@@ -48,3 +48,5 @@ outputs:
   halpha: "{contsub.output_root}/{galaxy}_{narrow_filter}_halpha_flux_nii_corr_{contsub_space}.fits"
   halpha_error: "{contsub.output_root}/{galaxy}_{narrow_filter}_halpha_flux_nii_corr_err_{contsub_space}.fits"
   manifest: "{contsub.output_root}/contsub_manifest.csv"
+  run_log: "{contsub.output_root}/logs/contsub_run_{run_id}.log"
+  run_log_jsonl: "{contsub.output_root}/logs/contsub_run_{run_id}.jsonl"
