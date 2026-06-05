@@ -8,6 +8,7 @@ scipy
 # Astronomy
 astropy
 spectral-cube
+synphot
 
 # Jupyter ecosystem
 notebook

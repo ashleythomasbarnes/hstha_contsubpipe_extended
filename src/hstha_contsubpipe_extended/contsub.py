@@ -18,6 +18,7 @@ from contextlib import ExitStack
 import csv
 import glob
 import logging
+import math
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -33,6 +34,12 @@ from .core.context import build_generic_context
 from .core.files import resolve_file
 
 LOGGER = logging.getLogger(__name__)
+
+try:
+    from synphot import SpectralElement, units as synphot_units
+except ImportError:  # pragma: no cover - exercised only when synphot is installed.
+    SpectralElement = None
+    synphot_units = None
 
 
 DEFAULT_CONFIG_DIR = "config"
@@ -79,6 +86,7 @@ class ContsubResult:
     extinction_ebv: float | None = None
     nii_to_halpha: float | None = None
     narrowband_width: float | None = None
+    bandpass_source: str = ""
     message: str = ""
 
 
@@ -527,7 +535,10 @@ def convert_output_units(hdu: fits.PrimaryHDU, settings: Mapping[str, Any]) -> f
 
 
 def get_narrowband_width(
-    narrow_hdu: fits.PrimaryHDU, narrow_filter: str, settings: Mapping[str, Any]
+    narrow_hdu: fits.PrimaryHDU,
+    narrow_filter: str,
+    settings: Mapping[str, Any],
+    bandpass_width: float | None = None,
 ) -> float:
     """Get the width used to convert flux density to integrated flux."""
 
@@ -535,13 +546,17 @@ def get_narrowband_width(
     if narrow_filter in widths:
         return float(widths[narrow_filter])
 
+    if bandpass_width is not None:
+        return float(bandpass_width)
+
     header_key = str(settings.get("narrowband_width_header", "PHOTBW"))
     if header_key in narrow_hdu.header:
         return float(narrow_hdu.header[header_key])
 
     raise KeyError(
         f"No narrowband width found for {narrow_filter}. Add "
-        f"narrowband_widths.{narrow_filter} in config/galaxies.yaml or set "
+        f"narrowband_widths.{narrow_filter} in config/galaxies.yaml, configure "
+        f"external bandpasses, or set "
         f"narrowband_width_header to a FITS header keyword."
     )
 
@@ -588,6 +603,275 @@ def foreground_ebv(
     return float(table[ebv_column][matches[0]])
 
 
+def _normalize_instrument(instrument: Any) -> str:
+    """Normalize HST instrument labels to the bandpass-table convention."""
+
+    text = str(instrument).strip().upper()
+    if text in {"WFC3", "WFC3_UVIS", "UVIS1"}:
+        return "UVIS"
+    if text == "UVIS2":
+        return "UVIS2"
+    if text in {"ACS_WFC", "WFC"}:
+        return "ACS"
+    return text
+
+
+def infer_bandpass_instrument(hdu: fits.PrimaryHDU, filename: Path) -> str:
+    """Infer the external bandpass instrument label for one HST image."""
+
+    path_text = str(filename).lower()
+    if "_acs_" in path_text or "/acs" in path_text:
+        return "ACS"
+    if "_uvis_" in path_text or "/uvis" in path_text:
+        return "UVIS"
+
+    instrume = str(hdu.header.get("INSTRUME", "")).upper()
+    detector = str(hdu.header.get("DETECTOR", "")).upper()
+    if instrume == "ACS":
+        return "ACS"
+    if instrume == "WFC3" and detector == "UVIS":
+        return "UVIS"
+    if detector:
+        return _normalize_instrument(detector)
+    return _normalize_instrument(instrume)
+
+
+def _bandpass_key_from_dat_file(path: Path) -> tuple[str, str]:
+    """Return ``(instrument, filter)`` from an HST throughput filename."""
+
+    name = path.name.split(".dat")[0]
+    name = name.replace("HST_", "").replace(".F", "_F")
+    name = name.replace("WFC_", "")
+    name = name.replace("WFC3_", "")
+    name = name.replace("UVIS1", "UVIS")
+    name = name.replace("UVIS2", "UVIS")
+    instrument, filter_name = name.split("_", 1)
+    return _normalize_instrument(instrument), filter_name.upper()
+
+
+def _bandpass_from_curve(path: Path) -> dict[str, float | str]:
+    """Read a throughput curve and return the same bandpass keys as the old pipeline."""
+
+    if SpectralElement is not None and synphot_units is not None:
+        area = 45238.93416 * synphot_units.AREA
+        bp = SpectralElement.from_file(path)
+        return {
+            "equivwidth": float(bp.equivwidth().value),
+            "integrate": float(bp.integrate().value),
+            "rmswidth": float(bp.rmswidth().value),
+            "photbw": float(bp.photbw().value),
+            "fwhm": float(bp.fwhm().value),
+            "rectwidth": float(bp.rectwidth().value),
+            "pivot": float(bp.pivot().value),
+            "unit_response": float(bp.unit_response(area).value),
+            "source": str(path),
+            "source_kind": "filter_curve",
+        }
+
+    arr = np.loadtxt(path)
+    wave = np.asarray(arr[:, 0], dtype=float)
+    throughput = np.asarray(arr[:, 1], dtype=float)
+    valid = np.isfinite(wave) & np.isfinite(throughput) & (throughput > 0)
+    wave = wave[valid]
+    throughput = throughput[valid]
+    if wave.size < 2:
+        raise ValueError(f"Not enough valid throughput samples in {path}")
+
+    integral_t_lambda = np.trapz(throughput * wave, wave)
+    integral_t_over_lambda = np.trapz(throughput / wave, wave)
+    pivot = math.sqrt(integral_t_lambda / integral_t_over_lambda)
+    integrate = np.trapz(throughput, wave)
+    rectwidth = integrate / np.nanmax(throughput)
+
+    mean_wave = np.trapz(wave * throughput, wave) / integrate
+    rmswidth = math.sqrt(np.trapz(((wave - mean_wave) ** 2) * throughput, wave) / integrate)
+    half_max = np.nanmax(throughput) / 2.0
+    above_half = wave[throughput >= half_max]
+    fwhm = float(above_half[-1] - above_half[0]) if above_half.size > 1 else float("nan")
+
+    return {
+        "equivwidth": float(integrate),
+        "integrate": float(integrate),
+        "rmswidth": float(rmswidth),
+        "photbw": float(rectwidth),
+        "fwhm": fwhm,
+        "rectwidth": float(rectwidth),
+        "pivot": float(pivot),
+        "unit_response": float("nan"),
+        "source": str(path),
+        "source_kind": "filter_curve_numeric",
+    }
+
+
+def load_bandpass_catalog(params: Mapping[str, Any]) -> dict[tuple[str, str], dict[str, Any]]:
+    """Load all HST filter curves, plus optional precomputed table columns."""
+
+    bandpass_cfg = params.get("bandpass", {}) or {}
+    root_value = str(bandpass_cfg.get("filter_root", "") or "")
+    if not root_value:
+        return {}
+    root = Path(root_value).expanduser()
+
+    catalog: dict[tuple[str, str], dict[str, Any]] = {}
+    for curve_path in sorted(root.glob("*.dat")):
+        try:
+            instrument, filter_name = _bandpass_key_from_dat_file(curve_path)
+            catalog[(instrument, filter_name)] = _bandpass_from_curve(curve_path)
+        except Exception as exc:
+            LOGGER.warning("Could not read bandpass curve %s: %s", curve_path, exc)
+
+    table_name = str(bandpass_cfg.get("table_file", "filter_table.fits"))
+    table_path = root / table_name
+    if table_path.exists():
+        table = Table.read(table_path)
+        for row in table:
+            first = str(row[0]).strip().upper()
+            second = str(row[1]).strip().upper()
+            if first in {"ACS", "UVIS", "UVIS1", "UVIS2", "WFC3"}:
+                instrument, filter_name = _normalize_instrument(first), second
+            else:
+                filter_name, instrument = first, _normalize_instrument(second)
+            entry = catalog.setdefault((instrument, filter_name), {})
+            entry["table_photplam"] = float(row["photplam"])
+            entry["table_photbw"] = float(row["photbw"])
+            if "photflam" in table.colnames:
+                scale = float(bandpass_cfg.get("table_photflam_scale", 1e-19))
+                entry["table_photflam"] = float(row["photflam"]) * scale
+            entry["table_source"] = str(table_path)
+
+    return catalog
+
+
+def _bandpass_entry_for(
+    instrument: str,
+    filter_key: str,
+    catalog: Mapping[tuple[str, str], Mapping[str, Any]],
+) -> tuple[str, Mapping[str, Any] | None]:
+    """Return the best external entry for an instrument/filter pair."""
+
+    candidates = [instrument]
+    if instrument == "UVIS2":
+        candidates.append("UVIS")
+    if instrument == "UVIS":
+        candidates.append("UVIS2")
+    for candidate in candidates:
+        entry = catalog.get((candidate, filter_key))
+        if entry is not None:
+            return candidate, entry
+    return instrument, None
+
+
+def _resolve_bandpass_value(
+    hdu: fits.PrimaryHDU,
+    filename: Path,
+    entry: Mapping[str, Any] | None,
+    quantity: str,
+    source_setting: str,
+    header_key: str,
+    external_keys: Sequence[str],
+    allow_header: bool,
+) -> tuple[float, str]:
+    """Resolve one bandpass quantity from configured source preferences."""
+
+    source = source_setting.lower()
+    if source in {"header", "fits"}:
+        if header_key not in hdu.header:
+            raise KeyError(f"{filename} is missing required header keyword {header_key}")
+        return float(hdu.header[header_key]), f"header:{header_key}"
+
+    source_key_map = {
+        "filter": external_keys,
+        "filter_curve": external_keys,
+        "external": external_keys,
+        "table": [f"table_{quantity}", *external_keys],
+        "filter_table": [f"table_{quantity}", *external_keys],
+        "filter_rectwidth": ["rectwidth", "table_photbw"],
+        "rectwidth": ["rectwidth", "table_photbw"],
+        "filter_photbw": ["photbw", "table_photbw"],
+        "photbw": ["photbw", "table_photbw"],
+        "unit_response": ["unit_response"],
+        "filter_unit_response": ["unit_response"],
+    }
+    keys = source_key_map.get(source, external_keys)
+    if entry is not None:
+        for key in keys:
+            if key in entry and np.isfinite(float(entry[key])):
+                src = str(entry.get("source") or entry.get("table_source") or "external")
+                if key.startswith("table_"):
+                    src = str(entry.get("table_source") or src)
+                return float(entry[key]), f"{source}:{Path(src).name}"
+
+    if allow_header and header_key in hdu.header:
+        return float(hdu.header[header_key]), f"header:{header_key}"
+
+    raise KeyError(
+        f"Could not resolve {quantity} for {filename}. Tried source={source_setting!r}; "
+        f"set bandpass.{quantity}_source or enable fallback_to_header."
+    )
+
+
+def bandpass_for_image(
+    hdu: fits.PrimaryHDU,
+    filename: Path,
+    filter_name: str,
+    catalog: Mapping[tuple[str, str], Mapping[str, Any]],
+    params: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Resolve pivot, width, and PHOTFLAM from configured sources."""
+
+    bandpass_cfg = params.get("bandpass", {}) or {}
+    allow_header = bool(bandpass_cfg.get("fallback_to_header", True))
+    filter_key = filter_name.upper()
+    instrument = infer_bandpass_instrument(hdu, filename)
+    matched_instrument, entry = _bandpass_entry_for(instrument, filter_key, catalog)
+
+    header_pivot_key = str(bandpass_cfg.get("header_pivot_key", "PHOTPLAM"))
+    header_width_key = str(bandpass_cfg.get("header_width_key", "PHOTBW"))
+    header_photflam_key = str(bandpass_cfg.get("header_photflam_key", "PHOTFLAM"))
+
+    pivot, pivot_source = _resolve_bandpass_value(
+        hdu=hdu,
+        filename=filename,
+        entry=entry,
+        quantity="photplam",
+        source_setting=str(bandpass_cfg.get("pivot_source", "filter")),
+        header_key=header_pivot_key,
+        external_keys=["pivot", "table_photplam"],
+        allow_header=allow_header,
+    )
+    width, width_source = _resolve_bandpass_value(
+        hdu=hdu,
+        filename=filename,
+        entry=entry,
+        quantity="photbw",
+        source_setting=str(bandpass_cfg.get("width_source", "filter_rectwidth")),
+        header_key=header_width_key,
+        external_keys=["rectwidth", "photbw", "table_photbw"],
+        allow_header=allow_header,
+    )
+    photflam, photflam_source = _resolve_bandpass_value(
+        hdu=hdu,
+        filename=filename,
+        entry=entry,
+        quantity="photflam",
+        source_setting=str(bandpass_cfg.get("photflam_source", "header")),
+        header_key=header_photflam_key,
+        external_keys=["table_photflam", "unit_response"],
+        allow_header=allow_header,
+    )
+
+    return {
+        "pivot": pivot,
+        "width": width,
+        "photflam": photflam,
+        "instrument": matched_instrument,
+        "source": pivot_source,
+        "pivot_source": pivot_source,
+        "width_source": width_source,
+        "photflam_source": photflam_source,
+    }
+
+
 def linear_continuum_subtract(
     narrow_hdu: fits.PrimaryHDU,
     blue_hdu: fits.PrimaryHDU,
@@ -595,6 +879,9 @@ def linear_continuum_subtract(
     blue_filter: str,
     red_filter: str,
     narrow_filter: str,
+    narrow_pivot: float | None = None,
+    blue_pivot: float | None = None,
+    red_pivot: float | None = None,
     narrow_error_hdu: fits.PrimaryHDU | None = None,
     blue_error_hdu: fits.PrimaryHDU | None = None,
     red_error_hdu: fits.PrimaryHDU | None = None,
@@ -618,9 +905,9 @@ def linear_continuum_subtract(
             f"linear workflow. Shapes: {sorted(shapes)}"
         )
 
-    lam_narrow = float(narrow_hdu.header["PHOTPLAM"])
-    lam_blue = float(blue_hdu.header["PHOTPLAM"])
-    lam_red = float(red_hdu.header["PHOTPLAM"])
+    lam_narrow = float(narrow_pivot if narrow_pivot is not None else narrow_hdu.header["PHOTPLAM"])
+    lam_blue = float(blue_pivot if blue_pivot is not None else blue_hdu.header["PHOTPLAM"])
+    lam_red = float(red_pivot if red_pivot is not None else red_hdu.header["PHOTPLAM"])
     denominator = abs(lam_blue - lam_red)
     if denominator == 0:
         raise ValueError("Broadband PHOTPLAM values are identical")
@@ -736,6 +1023,7 @@ def run_galaxy(
 
     image_set = resolve_image_set(galaxy, galaxy_config, config_dir=config_dir)
     _, params, _ = get_configs(config_dir=config_dir)
+    bandpass_catalog = load_bandpass_catalog(params)
     contsub_file = _output_path("outputs.contsub", image_set, config_dir=config_dir)
     continuum_file = _output_path("outputs.continuum", image_set, config_dir=config_dir)
     contsub_error_file = _output_path("outputs.contsub_error", image_set, config_dir=config_dir)
@@ -831,9 +1119,51 @@ def run_galaxy(
         if error_inputs:
             narrow_error_hdu, blue_error_hdu, red_error_hdu = error_inputs
 
-        narrow_hdu = convert_hst_count_rate_to_flux_density(narrow_hdu)
-        blue_hdu = convert_hst_count_rate_to_flux_density(blue_hdu)
-        red_hdu = convert_hst_count_rate_to_flux_density(red_hdu)
+        narrow_bandpass = bandpass_for_image(
+            hdu=narrow_hdu,
+            filename=image_set.narrow_file,
+            filter_name=image_set.narrow_filter,
+            catalog=bandpass_catalog,
+            params=params,
+        )
+        blue_bandpass = bandpass_for_image(
+            hdu=blue_hdu,
+            filename=image_set.blue_file,
+            filter_name=image_set.blue_filter,
+            catalog=bandpass_catalog,
+            params=params,
+        )
+        red_bandpass = bandpass_for_image(
+            hdu=red_hdu,
+            filename=image_set.red_file,
+            filter_name=image_set.red_filter,
+            catalog=bandpass_catalog,
+            params=params,
+        )
+        for hdu, bandpass in (
+            (narrow_hdu, narrow_bandpass),
+            (blue_hdu, blue_bandpass),
+            (red_hdu, red_bandpass),
+        ):
+            source_label = str(bandpass["source"])
+            hdu.header["CSBPSRC"] = (source_label[:48], "BP source")
+            hdu.header["CSBPINS"] = (str(bandpass["instrument"]), "Bandpass instrument")
+            hdu.header["CSBPWAV"] = (float(bandpass["pivot"]), "Bandpass pivot wavelength")
+            hdu.header["CSBPWID"] = (float(bandpass["width"]), "Bandpass width")
+            hdu.header["CSBPFLAM"] = (float(bandpass["photflam"]), "PHOTFLAM used")
+            hdu.header["CSWAVSRC"] = (str(bandpass["pivot_source"])[:48], "Pivot source")
+            hdu.header["CSWIDSRC"] = (str(bandpass["width_source"])[:48], "Width source")
+            hdu.header["CSFLSRC"] = (str(bandpass["photflam_source"])[:48], "PHOTFLAM source")
+
+        narrow_hdu = convert_hst_count_rate_to_flux_density(
+            narrow_hdu, photflam=float(narrow_bandpass["photflam"])
+        )
+        blue_hdu = convert_hst_count_rate_to_flux_density(
+            blue_hdu, photflam=float(blue_bandpass["photflam"])
+        )
+        red_hdu = convert_hst_count_rate_to_flux_density(
+            red_hdu, photflam=float(red_bandpass["photflam"])
+        )
 
         if (
             narrow_error_hdu is not None
@@ -842,15 +1172,15 @@ def run_galaxy(
         ):
             narrow_error_hdu = convert_hst_count_rate_to_flux_density(
                 narrow_error_hdu,
-                photflam=float(narrow_hdu.header["PHOTFLAM"]),
+                photflam=float(narrow_bandpass["photflam"]),
             )
             blue_error_hdu = convert_hst_count_rate_to_flux_density(
                 blue_error_hdu,
-                photflam=float(blue_hdu.header["PHOTFLAM"]),
+                photflam=float(blue_bandpass["photflam"]),
             )
             red_error_hdu = convert_hst_count_rate_to_flux_density(
                 red_error_hdu,
-                photflam=float(red_hdu.header["PHOTFLAM"]),
+                photflam=float(red_bandpass["photflam"]),
             )
 
         ebv = foreground_ebv(galaxy, settings, params)
@@ -861,8 +1191,9 @@ def run_galaxy(
                 (blue_hdu, blue_error_hdu),
                 (red_hdu, red_error_hdu),
             ):
+                pivot = float(band_hdu.header["CSBPWAV"])
                 factor = extinction_correction_factor(
-                    float(band_hdu.header["PHOTPLAM"]),
+                    pivot,
                     ebv=ebv,
                     r_v=r_v,
                 )
@@ -886,6 +1217,9 @@ def run_galaxy(
             blue_filter=image_set.blue_filter,
             red_filter=image_set.red_filter,
             narrow_filter=image_set.narrow_filter,
+            narrow_pivot=float(narrow_bandpass["pivot"]),
+            blue_pivot=float(blue_bandpass["pivot"]),
+            red_pivot=float(red_bandpass["pivot"]),
             narrow_error_hdu=narrow_error_hdu,
             blue_error_hdu=blue_error_hdu,
             red_error_hdu=red_error_hdu,
@@ -895,6 +1229,7 @@ def run_galaxy(
             narrow_hdu=narrow_hdu,
             narrow_filter=image_set.narrow_filter,
             settings=settings,
+            bandpass_width=float(narrow_bandpass["width"]),
         )
         products: dict[Path, fits.PrimaryHDU | None] = {
             contsub_file: convert_flux_density_to_flux(contsub_hdu, narrowband_width),
@@ -977,6 +1312,7 @@ def run_galaxy(
         extinction_ebv=ebv,
         nii_to_halpha=nii_to_halpha,
         narrowband_width=narrowband_width,
+        bandpass_source=str(narrow_bandpass["source"]),
     )
 
 
@@ -1009,6 +1345,7 @@ def _write_manifest(results: Sequence[ContsubResult], config_dir: str | Path) ->
         "extinction_ebv",
         "nii_to_halpha",
         "narrowband_width",
+        "bandpass_source",
         "message",
     ]
     with manifest_file.open("w", newline="") as fh:

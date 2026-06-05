@@ -27,5 +27,33 @@ foreground_extinction:
   ebv_column: "mwext_sf11"
   r_v: 3.1
 
+bandpass:
+  # The old pipeline used get_bandpassinfo(rootdir_bp) to read every *.dat
+  # filter curve into a dictionary keyed by instrument/filter, e.g. UVIS_F657N.
+  filter_root: "/Users/abarnes/Library/CloudStorage/Dropbox/Data/Extragalactic/misc/hst_filters"
+
+  # Defaults:
+  # - pivot_source: use the filter curve pivot wavelength.
+  # - width_source: use the filter curve rectangular width.
+  # - photflam_source: use the PHOTFLAM value from the image header.
+  #
+  # Allowed values:
+  # - pivot_source: "filter", "filter_table", "header"
+  # - width_source: "filter_rectwidth", "filter_photbw", "filter_table", "header"
+  # - photflam_source: "header", "filter_table", "filter_unit_response"
+  pivot_source: "filter"
+  width_source: "filter_rectwidth"
+  photflam_source: "header"
+
+  # Optional precomputed table. These values are available when one of the
+  # *_source options above is set to "filter_table".
+  table_file: "filter_table.fits"
+  table_photflam_scale: 1.0e-19
+
+  header_pivot_key: "PHOTPLAM"
+  header_width_key: "PHOTBW"
+  header_photflam_key: "PHOTFLAM"
+  fallback_to_header: true
+
 placeholders:
   project_name: "my_project"

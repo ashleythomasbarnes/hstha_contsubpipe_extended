@@ -182,9 +182,49 @@ foreground_extinction:
 ```
 
 The code reads E(B-V), applies a CCM89 foreground correction at each filter's
-`PHOTPLAM`, and propagates the same correction to the error maps. If a galaxy
-uses a subfield name such as `ngc628c`, set `sample_name` under that galaxy's
-override so the sample-table row can be found.
+resolved pivot wavelength, and propagates the same correction to the error
+maps. If a galaxy uses a subfield name such as `ngc628c`, set `sample_name`
+under that galaxy's override so the sample-table row can be found.
+
+### Bandpasses
+
+Bandpass metadata is configured in `config/params.yaml`:
+
+```yaml
+bandpass:
+  filter_root: "/path/to/hst_filters"
+  pivot_source: "filter"
+  width_source: "filter_rectwidth"
+  photflam_source: "header"
+  table_file: "filter_table.fits"
+  table_photflam_scale: 1.0e-19
+  header_pivot_key: "PHOTPLAM"
+  header_width_key: "PHOTBW"
+  header_photflam_key: "PHOTFLAM"
+  fallback_to_header: true
+```
+
+This mirrors the older `get_bandpassinfo(rootdir_bp)` workflow. The pipeline
+reads every `*.dat` throughput curve in `filter_root` into a bandpass catalog
+keyed by instrument/filter, e.g. `UVIS_F657N` or `ACS_F658N`. When `synphot` is
+installed it stores the same quantities as the old helper: `equivwidth`,
+`integrate`, `rmswidth`, `photbw`, `fwhm`, `rectwidth`, `pivot`, and
+`unit_response`. A numerical fallback estimates the key values if `synphot` is
+not available.
+
+The source for each quantity is explicit:
+
+- `pivot_source: "filter"` uses the filter-curve `pivot`.
+- `width_source: "filter_rectwidth"` uses the filter-curve `rectwidth`.
+- `photflam_source: "header"` uses `PHOTFLAM` from the image header.
+
+You can instead use `filter_table` or `header` for pivot/width, and `header`,
+`filter_table`, or `filter_unit_response` for PHOTFLAM. If external bandpass
+information is unavailable and `fallback_to_header` is true, the code falls
+back to the configured FITS header keywords.
+
+Instrument/filter matching uses the image filename/header to choose keys like
+`UVIS_F657N` or `ACS_F658N`, matching the convention used in the older modules.
 
 ### Fixed [NII] Correction
 
@@ -214,29 +254,31 @@ For each galaxy, the pipeline:
 5. Converts science and error images to flux density with
    `data * PHOTFLAM * 1e20`.
 6. Applies the configured foreground extinction correction.
-7. Computes a linear continuum estimate at the narrowband pivot wavelength:
+7. Resolves pivot wavelengths and the narrowband width from the configured HST
+   filter table/curves, falling back to FITS headers if needed.
+8. Computes a linear continuum estimate at the narrowband pivot wavelength:
 
 ```text
 continuum = weight_f555w * f555w + weight_f814w * f814w
 ```
 
-where the weights come from the `PHOTPLAM` values:
+where the weights come from the resolved pivot wavelengths:
 
 ```text
-weight_f555w = abs(PHOTPLAM_f814w - PHOTPLAM_narrow) / abs(PHOTPLAM_f555w - PHOTPLAM_f814w)
-weight_f814w = abs(PHOTPLAM_f555w - PHOTPLAM_narrow) / abs(PHOTPLAM_f555w - PHOTPLAM_f814w)
+weight_f555w = abs(pivot_f814w - pivot_narrow) / abs(pivot_f555w - pivot_f814w)
+weight_f814w = abs(pivot_f555w - pivot_narrow) / abs(pivot_f555w - pivot_f814w)
 ```
 
-8. Propagates the continuum and continuum-subtracted errors in quadrature.
-9. Converts continuum-subtracted, continuum, and error maps from
-   `erg/s/cm2/A/pixel` to integrated flux using the narrowband width from
-   `PHOTBW` or `narrowband_widths`.
-10. Divides by the FITS WCS pixel area so the final maps are surface brightness
+9. Propagates the continuum and continuum-subtracted errors in quadrature.
+10. Converts continuum-subtracted, continuum, and error maps from
+   `erg/s/cm2/A/pixel` to integrated flux using the resolved narrowband width
+   or a `narrowband_widths` override.
+11. Divides by the FITS WCS pixel area so the final maps are surface brightness
     in `1e-20 erg/s/cm2/arcsec2` by default. Set `output_unit:
     "erg/s/cm2/pixel"` in `config/galaxies.yaml` to keep per-pixel fluxes.
-11. Writes the raw continuum-subtracted flux products and the fixed-[NII]
+12. Writes the raw continuum-subtracted flux products and the fixed-[NII]
     H-alpha products.
-12. Writes `contsub_manifest.csv` summarizing inputs, outputs, weights, and failures.
+13. Writes `contsub_manifest.csv` summarizing inputs, outputs, weights, and failures.
 
 The code checks that all three image arrays have the same shape. If a target
 fails because shapes differ, that galaxy needs a later reprojection step before

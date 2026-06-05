@@ -22,6 +22,7 @@ dependencies = [
   "astropy",
   "numpy",
   "pyyaml",
+  "synphot",
 ]
 
 [project.scripts]
