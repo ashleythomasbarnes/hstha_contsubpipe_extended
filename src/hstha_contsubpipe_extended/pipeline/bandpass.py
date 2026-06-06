@@ -71,7 +71,7 @@ def bandpass_from_curve(path: Path) -> dict[str, float | str]:
 
     if SpectralElement is not None and synphot_units is not None:
         area = 45238.93416 * synphot_units.AREA
-        bp = SpectralElement.from_file(path)
+        bp = SpectralElement.from_file(str(path))
         return {
             "equivwidth": float(bp.equivwidth().value),
             "integrate": float(bp.integrate().value),
