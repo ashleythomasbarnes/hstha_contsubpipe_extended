@@ -23,6 +23,10 @@ defaults:
   overwrite: true
   write_continuum: true
   contsub_space: "log"
+  coverage_mask:
+    enabled: true
+    closing_size: 10
+    closing_iterations: 5
   require_errors: true
   narrowband_width_header: "PHOTBW"
   narrowband_widths: {}

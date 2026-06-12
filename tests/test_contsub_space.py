@@ -110,6 +110,33 @@ def test_log_space_nonpositive_continuum_inputs_become_zero_continuum():
     np.testing.assert_allclose(contsub_error_hdu.data, [[1.0, 2.0]])
 
 
+def test_subtraction_preserves_coverage_nans_in_products_and_errors():
+    contsub_hdu, continuum_hdu, contsub_error_hdu, continuum_error_hdu, *_ = (
+        linear_continuum_subtract(
+            narrow_hdu=_hdu([[20.0, np.nan]]),
+            blue_hdu=_hdu([[4.0, 9.0]]),
+            red_hdu=_hdu([[16.0, 36.0]]),
+            blue_filter="f555w",
+            red_filter="f814w",
+            narrow_filter="f657n",
+            narrow_pivot=2.0,
+            blue_pivot=1.0,
+            red_pivot=3.0,
+            narrow_error_hdu=_hdu([[1.0, np.nan]]),
+            blue_error_hdu=_hdu([[0.4, 0.9]]),
+            red_error_hdu=_hdu([[1.6, 3.6]]),
+            contsub_space="linear",
+        )
+    )
+
+    assert np.isnan(continuum_hdu.data[0, 1])
+    assert np.isnan(contsub_hdu.data[0, 1])
+    assert np.isnan(continuum_error_hdu.data[0, 1])
+    assert np.isnan(contsub_error_hdu.data[0, 1])
+    np.testing.assert_allclose(continuum_hdu.data[0, 0], 10.0)
+    np.testing.assert_allclose(contsub_hdu.data[0, 0], 10.0)
+
+
 def test_invalid_contsub_space_raises_clear_error():
     with pytest.raises(ValueError, match="Unsupported contsub_space"):
         _subtract(contsub_space="sqrt")

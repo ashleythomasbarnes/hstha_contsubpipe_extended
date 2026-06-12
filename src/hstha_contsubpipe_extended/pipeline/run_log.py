@@ -142,11 +142,14 @@ def context_audit_record(
             "narrowband_width": result.narrowband_width,
             "bandpass_source": result.bandpass_source,
             "background_corrections": list(context.background_corrections),
+            "coverage_mask": dict(context.coverage_mask),
         },
     }
 
 
-def failed_galaxy_audit_record(galaxy: str, result: ContsubResult, exception: BaseException) -> dict[str, Any]:
+def failed_galaxy_audit_record(
+    galaxy: str, result: ContsubResult, exception: BaseException
+) -> dict[str, Any]:
     """Build an audit record when a context was not available."""
 
     return {
@@ -167,6 +170,7 @@ def failed_galaxy_audit_record(galaxy: str, result: ContsubResult, exception: Ba
             "narrowband_width": result.narrowband_width,
             "bandpass_source": result.bandpass_source,
             "background_corrections": [],
+            "coverage_mask": {},
         },
     }
 
@@ -240,6 +244,7 @@ def render_text_log(audit: RunAudit) -> str:
                 "write_continuum",
                 "contsub_space",
                 "background_corrections",
+                "coverage_mask",
                 "nii_to_halpha",
                 "output_unit",
                 "overwrite",

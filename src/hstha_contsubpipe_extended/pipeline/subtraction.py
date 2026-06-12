@@ -56,8 +56,10 @@ def linear_continuum_subtract(
     weight_blue = abs(lam_red - lam_narrow) / denominator
     weight_red = abs(lam_blue - lam_narrow) / denominator
 
+    narrow_data = np.asarray(narrow_hdu.data, dtype=np.float32)
     blue_data = np.asarray(blue_hdu.data, dtype=np.float32)
     red_data = np.asarray(red_hdu.data, dtype=np.float32)
+    input_nonfinite = ~np.isfinite(narrow_data) | ~np.isfinite(blue_data) | ~np.isfinite(red_data)
     if contsub_space == "linear":
         continuum_data = blue_data * weight_blue + red_data * weight_red
     else:
@@ -66,7 +68,8 @@ def linear_continuum_subtract(
             red_log = np.log10(np.where(red_data > 0, red_data, np.nan))
             continuum_data = 10 ** (blue_log * weight_blue + red_log * weight_red)
     continuum_data[~np.isfinite(continuum_data)] = 0.0
-    contsub_data = np.asarray(narrow_hdu.data, dtype=np.float32) - continuum_data
+    continuum_data[input_nonfinite] = np.nan
+    contsub_data = narrow_data - continuum_data
 
     continuum_hdu = narrow_hdu.copy()
     contsub_hdu = narrow_hdu.copy()
@@ -96,8 +99,15 @@ def linear_continuum_subtract(
         if len(error_shapes) != 1:
             raise ValueError(f"Input error image shapes differ. Shapes: {sorted(error_shapes)}")
 
+        narrow_error_data = np.asarray(narrow_error_hdu.data, dtype=np.float32)
         blue_error_data = np.asarray(blue_error_hdu.data, dtype=np.float32)
         red_error_data = np.asarray(red_error_hdu.data, dtype=np.float32)
+        error_nonfinite = (
+            input_nonfinite
+            | ~np.isfinite(narrow_error_data)
+            | ~np.isfinite(blue_error_data)
+            | ~np.isfinite(red_error_data)
+        )
         if contsub_space == "linear":
             continuum_error_data = np.sqrt(
                 (blue_error_data * weight_blue) ** 2 + (red_error_data * weight_red) ** 2
@@ -107,14 +117,12 @@ def linear_continuum_subtract(
                 blue_log_error = np.abs((blue_error_data / blue_data) / np.log(10))
                 red_log_error = np.abs((red_error_data / red_data) / np.log(10))
                 continuum_error_log = np.sqrt(
-                    (blue_log_error * weight_blue) ** 2
-                    + (red_log_error * weight_red) ** 2
+                    (blue_log_error * weight_blue) ** 2 + (red_log_error * weight_red) ** 2
                 )
                 continuum_error_data = continuum_data * np.log(10) * continuum_error_log
             continuum_error_data[~np.isfinite(continuum_error_data)] = 0.0
-        contsub_error_data = np.sqrt(
-            np.asarray(narrow_error_hdu.data, dtype=np.float32) ** 2 + continuum_error_data**2
-        )
+        continuum_error_data[error_nonfinite] = np.nan
+        contsub_error_data = np.sqrt(narrow_error_data**2 + continuum_error_data**2)
         continuum_error_hdu = narrow_hdu.copy()
         contsub_error_hdu = narrow_hdu.copy()
         continuum_error_hdu.data = np.asarray(continuum_error_data, dtype=np.float32)

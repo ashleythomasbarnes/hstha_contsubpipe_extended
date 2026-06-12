@@ -6,6 +6,7 @@ from typing import Any, Mapping, Sequence
 
 import numpy as np
 from astropy.io import fits
+from scipy.ndimage import binary_closing
 
 
 def convert_hst_count_rate_to_flux_density(
@@ -92,6 +93,117 @@ def preprocess_hst_data(
         crop_hdu(blue_hdu, y_slice, x_slice),
         crop_hdu(red_hdu, y_slice, x_slice),
         cropped_errors,
+    )
+
+
+def _require_matching_shapes(hdus: Sequence[fits.PrimaryHDU], description: str) -> tuple[int, ...]:
+    if any(hdu.data is None for hdu in hdus):
+        raise ValueError(f"{description} HDUs must contain image data")
+    shapes = {np.asarray(hdu.data).shape for hdu in hdus}
+    if len(shapes) != 1:
+        raise ValueError(f"{description} image shapes differ. Shapes: {sorted(shapes)}")
+    return next(iter(shapes))
+
+
+def _mask_hdu_to_coverage(
+    hdu: fits.PrimaryHDU,
+    coverage_mask: np.ndarray,
+    closing_size: int,
+    closing_iterations: int,
+    retained_pixels: int,
+) -> fits.PrimaryHDU:
+    out = hdu.copy()
+    data = np.asarray(out.data, dtype=np.float32).copy()
+    data[~coverage_mask] = np.nan
+    out.data = data
+    out.header["CSCOVMSK"] = (True, "Matched to common filter coverage")
+    out.header["CSCOVCLS"] = (closing_size, "Coverage mask closing kernel")
+    out.header["CSCOVIT"] = (closing_iterations, "Coverage mask closing iterations")
+    out.header["CSCOVPIX"] = (retained_pixels, "Pixels retained by coverage mask")
+    return out
+
+
+def match_spatial_coverage(
+    blue_hdu: fits.PrimaryHDU,
+    narrow_hdu: fits.PrimaryHDU,
+    red_hdu: fits.PrimaryHDU,
+    error_hdus: Sequence[fits.PrimaryHDU | None] | None = None,
+    closing_size: int = 10,
+    closing_iterations: int = 5,
+) -> tuple[
+    fits.PrimaryHDU, fits.PrimaryHDU, fits.PrimaryHDU, list[fits.PrimaryHDU | None], dict[str, Any]
+]:
+    """Mask science and error HDUs to the common finite footprint of all filters."""
+
+    _require_matching_shapes((blue_hdu, narrow_hdu, red_hdu), "Science")
+    if closing_size < 1:
+        raise ValueError("coverage_mask.closing_size must be >= 1")
+    if closing_iterations < 0:
+        raise ValueError("coverage_mask.closing_iterations must be >= 0")
+
+    blue_data = np.asarray(blue_hdu.data, dtype=np.float32)
+    narrow_data = np.asarray(narrow_hdu.data, dtype=np.float32)
+    red_data = np.asarray(red_hdu.data, dtype=np.float32)
+    raw_mask = np.isfinite(blue_data) & np.isfinite(narrow_data) & np.isfinite(red_data)
+    coverage_mask = raw_mask
+    if closing_size > 1 and closing_iterations > 0:
+        structure = np.ones((closing_size, closing_size), dtype=bool)
+        coverage_mask = binary_closing(
+            raw_mask,
+            structure=structure,
+            iterations=closing_iterations,
+            border_value=1,
+        )
+
+    retained_pixels = int(np.count_nonzero(coverage_mask))
+    record = {
+        "raw_pixels": int(np.count_nonzero(raw_mask)),
+        "retained_pixels": retained_pixels,
+        "masked_pixels": int(coverage_mask.size - retained_pixels),
+        "closing_size": int(closing_size),
+        "closing_iterations": int(closing_iterations),
+    }
+
+    masked_errors: list[fits.PrimaryHDU | None] = []
+    for err_hdu in error_hdus or ():
+        if err_hdu is None:
+            masked_errors.append(None)
+            continue
+        _require_matching_shapes((blue_hdu, err_hdu), "Science and error")
+        masked_errors.append(
+            _mask_hdu_to_coverage(
+                err_hdu,
+                coverage_mask,
+                closing_size,
+                closing_iterations,
+                retained_pixels,
+            )
+        )
+
+    return (
+        _mask_hdu_to_coverage(
+            blue_hdu,
+            coverage_mask,
+            closing_size,
+            closing_iterations,
+            retained_pixels,
+        ),
+        _mask_hdu_to_coverage(
+            narrow_hdu,
+            coverage_mask,
+            closing_size,
+            closing_iterations,
+            retained_pixels,
+        ),
+        _mask_hdu_to_coverage(
+            red_hdu,
+            coverage_mask,
+            closing_size,
+            closing_iterations,
+            retained_pixels,
+        ),
+        masked_errors,
+        record,
     )
 
 

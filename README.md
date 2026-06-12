@@ -5,8 +5,9 @@ subtraction of the PHANGS HST sample.
 
 The current implementation keeps to a plain no-MUSE workflow: zero-to-NaN
 preprocessing, narrowband padding removal, foreground extinction correction,
-linear- or log-space continuum interpolation between F555W and F814W, propagated error
-maps, conversion to integrated flux, and a configurable fixed [NII] correction.
+common filter coverage masking, linear- or log-space continuum interpolation
+between F555W and F814W, propagated error maps, conversion to integrated flux,
+and a configurable fixed [NII] correction.
 It does not yet do anchoring, PSF matching, or reprojection.
 
 ## Directory Layout
@@ -117,6 +118,7 @@ resolve_bandpasses
 calibrate_flux_density
 apply_background_corrections
 apply_foreground_extinction
+match_spatial_coverage
 subtract_continuum
 build_products
 write_outputs
@@ -177,6 +179,10 @@ defaults:
   overwrite: false
   write_continuum: true
   contsub_space: "linear"
+  coverage_mask:
+    enabled: true
+    closing_size: 10
+    closing_iterations: 5
   require_errors: true
   narrowband_width_header: "PHOTBW"
   narrowband_widths: {}
@@ -320,7 +326,12 @@ For each galaxy, the default stage sequence:
    `1e-20 erg/s/cm2/A/arcsec2` and converted to per-pixel flux density using
    the FITS WCS pixel area before subtraction from the science HDU.
 8. Applies the configured foreground extinction correction.
-9. Computes a continuum estimate at the narrowband pivot wavelength. The
+9. Masks the blue, narrowband, red, and matching error HDUs to their common
+   finite-pixel spatial coverage. By default the common mask is binary-closed
+   with a 10x10 kernel for 5 iterations, matching the PHANGS `get_covmask`
+   behavior. Configure `coverage_mask` in `config/galaxies.yaml`, or disable
+   the `match_spatial_coverage` stage, to change this.
+10. Computes a continuum estimate at the narrowband pivot wavelength. The
    default `contsub_space: "linear"` setting uses:
 
 ```text
@@ -341,17 +352,17 @@ weight_f555w = abs(pivot_f814w - pivot_narrow) / abs(pivot_f555w - pivot_f814w)
 weight_f814w = abs(pivot_f555w - pivot_narrow) / abs(pivot_f555w - pivot_f814w)
 ```
 
-10. Propagates the continuum and continuum-subtracted errors in quadrature.
-11. Converts continuum-subtracted, continuum, and error maps from
+11. Propagates the continuum and continuum-subtracted errors in quadrature.
+12. Converts continuum-subtracted, continuum, and error maps from
    `erg/s/cm2/A/pixel` to integrated flux using the resolved narrowband width
    or a `narrowband_widths` override.
-12. Divides by the FITS WCS pixel area so the final maps are surface brightness
+13. Divides by the FITS WCS pixel area so the final maps are surface brightness
     in `1e-20 erg/s/cm2/arcsec2` by default. Set `output_unit:
     "erg/s/cm2/pixel"` in `config/galaxies.yaml` to keep per-pixel fluxes.
-13. Writes the raw continuum-subtracted flux products and the fixed-[NII]
+14. Writes the raw continuum-subtracted flux products and the fixed-[NII]
     H-alpha products.
-14. Writes `contsub_manifest.csv` summarizing inputs, outputs, weights, and failures.
-15. Writes timestamped text and JSONL audit logs under `logs/`, including dry runs.
+15. Writes `contsub_manifest.csv` summarizing inputs, outputs, weights, and failures.
+16. Writes timestamped text and JSONL audit logs under `logs/`, including dry runs.
 
 The code checks that all three image arrays have the same shape. If a target
 fails because shapes differ, that galaxy needs a later reprojection step before

@@ -108,6 +108,7 @@ class PipelineContext:
     narrowband_width: float | None = None
     bandpass_source: str = ""
     background_corrections: list[dict[str, Any]] = field(default_factory=list)
+    coverage_mask: dict[str, Any] = field(default_factory=dict)
     stage_events: list[dict[str, Any]] = field(default_factory=list)
 
     @property

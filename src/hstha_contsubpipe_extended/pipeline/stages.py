@@ -14,6 +14,7 @@ from .fits_ops import (
     apply_background_correction,
     convert_hst_count_rate_to_flux_density,
     convert_inverse_variance_to_error,
+    match_spatial_coverage,
     preprocess_hst_data,
 )
 from .models import PipelineContext, PipelineStop
@@ -55,6 +56,7 @@ _DEFAULT_STAGE_NAMES = [
     "calibrate_flux_density",
     "apply_background_corrections",
     "apply_foreground_extinction",
+    "match_spatial_coverage",
     "subtract_continuum",
     "build_products",
     "write_outputs",
@@ -362,6 +364,46 @@ def _stage_apply_foreground_extinction(context: PipelineContext) -> None:
         apply_foreground_extinction_to_hdu_pair(band_hdu, err_hdu, ebv=ebv, r_v=r_v)
 
 
+def _stage_match_spatial_coverage(context: PipelineContext) -> None:
+    cfg = context.settings.get("coverage_mask", {}) or {}
+    if isinstance(cfg, bool):
+        enabled = cfg
+        closing_size = 10
+        closing_iterations = 5
+    elif isinstance(cfg, Mapping):
+        enabled = bool(cfg.get("enabled", True))
+        closing_size = int(cfg.get("closing_size", 10))
+        closing_iterations = int(cfg.get("closing_iterations", 5))
+    else:
+        raise ValueError(f"{context.galaxy}: coverage_mask must be a mapping or boolean")
+
+    if not enabled:
+        return
+    if context.narrow_hdu is None or context.blue_hdu is None or context.red_hdu is None:
+        raise ValueError("Science HDUs must be calibrated before coverage matching")
+
+    (
+        context.blue_hdu,
+        context.narrow_hdu,
+        context.red_hdu,
+        error_hdus,
+        context.coverage_mask,
+    ) = match_spatial_coverage(
+        blue_hdu=context.blue_hdu,
+        narrow_hdu=context.narrow_hdu,
+        red_hdu=context.red_hdu,
+        error_hdus=(
+            context.blue_error_hdu,
+            context.narrow_error_hdu,
+            context.red_error_hdu,
+        ),
+        closing_size=closing_size,
+        closing_iterations=closing_iterations,
+    )
+    if error_hdus:
+        context.blue_error_hdu, context.narrow_error_hdu, context.red_error_hdu = error_hdus
+
+
 def _stage_subtract_continuum(context: PipelineContext) -> None:
     image_set = _require_image_set(context)
     contsub_space = str(context.settings.get("contsub_space", "linear")).lower()
@@ -425,6 +467,7 @@ def _register_builtin_stages() -> None:
         ("calibrate_flux_density", _stage_calibrate_flux_density),
         ("apply_background_corrections", _stage_apply_background_corrections),
         ("apply_foreground_extinction", _stage_apply_foreground_extinction),
+        ("match_spatial_coverage", _stage_match_spatial_coverage),
         ("subtract_continuum", _stage_subtract_continuum),
         ("build_products", _stage_build_products),
         ("write_outputs", _stage_write_outputs),
