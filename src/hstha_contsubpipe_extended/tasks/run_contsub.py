@@ -13,7 +13,7 @@ def run(
     keep_going: bool = True,
     stage_names: list[str] | None = None,
 ) -> list[ContsubResult]:
-    """Run the configured linear HST continuum-subtraction pipeline."""
+    """Run the configured HST continuum-subtraction pipeline."""
 
     return run_all(
         galaxies=galaxies,

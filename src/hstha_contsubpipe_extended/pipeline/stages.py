@@ -278,6 +278,11 @@ def _stage_apply_foreground_extinction(context: PipelineContext) -> None:
 
 def _stage_subtract_continuum(context: PipelineContext) -> None:
     image_set = _require_image_set(context)
+    contsub_space = str(context.settings.get("contsub_space", "linear")).lower()
+    if contsub_space not in {"linear", "log"}:
+        raise ValueError(
+            f"Unsupported contsub_space {contsub_space!r}; expected 'linear' or 'log'"
+        )
     if (
         context.narrow_hdu is None
         or context.blue_hdu is None
@@ -308,6 +313,7 @@ def _stage_subtract_continuum(context: PipelineContext) -> None:
         narrow_error_hdu=context.narrow_error_hdu,
         blue_error_hdu=context.blue_error_hdu,
         red_error_hdu=context.red_error_hdu,
+        contsub_space=contsub_space,
     )
     context.bandpass_source = str(context.narrow_bandpass["source"])
 

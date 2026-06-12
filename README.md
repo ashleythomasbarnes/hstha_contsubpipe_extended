@@ -5,10 +5,9 @@ subtraction of the PHANGS HST sample.
 
 The current implementation keeps to a plain no-MUSE workflow: zero-to-NaN
 preprocessing, narrowband padding removal, foreground extinction correction,
-linear-space continuum interpolation between F555W and F814W, propagated error
+linear- or log-space continuum interpolation between F555W and F814W, propagated error
 maps, conversion to integrated flux, and a configurable fixed [NII] correction.
-It does not yet do anchoring, PSF matching, reprojection, or log-space
-subtraction.
+It does not yet do anchoring, PSF matching, or reprojection.
 
 ## Directory Layout
 
@@ -28,12 +27,12 @@ Outputs are written to:
 The main products are:
 
 ```text
-{galaxy}_{narrow_filter}_contsub_flux_linear.fits
-{galaxy}_{narrow_filter}_contsub_flux_err_linear.fits
-{galaxy}_{narrow_filter}_continuum_flux_linear.fits
-{galaxy}_{narrow_filter}_continuum_flux_err_linear.fits
-{galaxy}_{narrow_filter}_halpha_flux_nii_corr_linear.fits
-{galaxy}_{narrow_filter}_halpha_flux_nii_corr_err_linear.fits
+{galaxy}_{narrow_filter}_contsub_flux_{linear|log}.fits
+{galaxy}_{narrow_filter}_contsub_flux_err_{linear|log}.fits
+{galaxy}_{narrow_filter}_continuum_flux_{linear|log}.fits
+{galaxy}_{narrow_filter}_continuum_flux_err_{linear|log}.fits
+{galaxy}_{narrow_filter}_halpha_flux_nii_corr_{linear|log}.fits
+{galaxy}_{narrow_filter}_halpha_flux_nii_corr_err_{linear|log}.fits
 contsub_manifest.csv
 logs/contsub_run_{run_id}.log
 logs/contsub_run_{run_id}.jsonl
@@ -176,6 +175,7 @@ defaults:
   hdu_index: 0
   overwrite: false
   write_continuum: true
+  contsub_space: "linear"
   require_errors: true
   narrowband_width_header: "PHOTBW"
   narrowband_widths: {}
@@ -306,10 +306,18 @@ For each galaxy, the default stage sequence:
 6. Applies the configured foreground extinction correction.
 7. Resolves pivot wavelengths and the narrowband width from the configured HST
    filter table/curves, falling back to FITS headers if needed.
-8. Computes a linear continuum estimate at the narrowband pivot wavelength:
+8. Computes a continuum estimate at the narrowband pivot wavelength. The
+   default `contsub_space: "linear"` setting uses:
 
 ```text
 continuum = weight_f555w * f555w + weight_f814w * f814w
+```
+
+Set `contsub_space: "log"` in `config/galaxies.yaml` defaults or a per-galaxy
+override to use log-space interpolation instead:
+
+```text
+continuum = 10 ** (weight_f555w * log10(f555w) + weight_f814w * log10(f814w))
 ```
 
 where the weights come from the resolved pivot wavelengths:
@@ -333,4 +341,4 @@ weight_f814w = abs(pivot_f555w - pivot_narrow) / abs(pivot_f555w - pivot_f814w)
 
 The code checks that all three image arrays have the same shape. If a target
 fails because shapes differ, that galaxy needs a later reprojection step before
-this plain linear subtraction can be applied.
+this plain subtraction can be applied.

@@ -19,6 +19,7 @@ def linear_continuum_subtract(
     narrow_error_hdu: fits.PrimaryHDU | None = None,
     blue_error_hdu: fits.PrimaryHDU | None = None,
     red_error_hdu: fits.PrimaryHDU | None = None,
+    contsub_space: str = "linear",
 ) -> tuple[
     fits.PrimaryHDU,
     fits.PrimaryHDU,
@@ -27,7 +28,13 @@ def linear_continuum_subtract(
     float,
     float,
 ]:
-    """Subtract a linear continuum estimate and optionally propagate errors."""
+    """Subtract a continuum estimate and optionally propagate errors."""
+
+    contsub_space = str(contsub_space).lower()
+    if contsub_space not in {"linear", "log"}:
+        raise ValueError(
+            f"Unsupported contsub_space {contsub_space!r}; expected 'linear' or 'log'"
+        )
 
     if narrow_hdu.data is None or blue_hdu.data is None or red_hdu.data is None:
         raise ValueError("All input HDUs must contain image data")
@@ -36,7 +43,7 @@ def linear_continuum_subtract(
     if len(shapes) != 1:
         raise ValueError(
             "Input image shapes differ. Reprojection is not part of this plain "
-            f"linear workflow. Shapes: {sorted(shapes)}"
+            f"continuum-subtraction workflow. Shapes: {sorted(shapes)}"
         )
 
     lam_narrow = float(narrow_pivot if narrow_pivot is not None else narrow_hdu.header["PHOTPLAM"])
@@ -49,10 +56,15 @@ def linear_continuum_subtract(
     weight_blue = abs(lam_red - lam_narrow) / denominator
     weight_red = abs(lam_blue - lam_narrow) / denominator
 
-    continuum_data = (
-        np.asarray(blue_hdu.data, dtype=np.float32) * weight_blue
-        + np.asarray(red_hdu.data, dtype=np.float32) * weight_red
-    )
+    blue_data = np.asarray(blue_hdu.data, dtype=np.float32)
+    red_data = np.asarray(red_hdu.data, dtype=np.float32)
+    if contsub_space == "linear":
+        continuum_data = blue_data * weight_blue + red_data * weight_red
+    else:
+        with np.errstate(divide="ignore", invalid="ignore"):
+            blue_log = np.log10(np.where(blue_data > 0, blue_data, np.nan))
+            red_log = np.log10(np.where(red_data > 0, red_data, np.nan))
+            continuum_data = 10 ** (blue_log * weight_blue + red_log * weight_red)
     continuum_data[~np.isfinite(continuum_data)] = 0.0
     contsub_data = np.asarray(narrow_hdu.data, dtype=np.float32) - continuum_data
 
@@ -64,7 +76,7 @@ def linear_continuum_subtract(
     for hdu, product in ((continuum_hdu, "CONTINUUM"), (contsub_hdu, "CONTSUB")):
         hdu.header["CONTSUB"] = (True, "Produced by hstha_contsubpipe_extended")
         hdu.header["CSPROD"] = (product, "Continuum-subtraction product")
-        hdu.header["CSSPACE"] = ("linear", "Continuum interpolation space")
+        hdu.header["CSSPACE"] = (contsub_space, "Continuum interpolation space")
         hdu.header["CSBLUE"] = (blue_filter, "Blue continuum filter")
         hdu.header["CSRED"] = (red_filter, "Red continuum filter")
         hdu.header["CSNB"] = (narrow_filter, "Narrowband filter")
@@ -84,10 +96,22 @@ def linear_continuum_subtract(
         if len(error_shapes) != 1:
             raise ValueError(f"Input error image shapes differ. Shapes: {sorted(error_shapes)}")
 
-        continuum_error_data = np.sqrt(
-            (np.asarray(blue_error_hdu.data, dtype=np.float32) * weight_blue) ** 2
-            + (np.asarray(red_error_hdu.data, dtype=np.float32) * weight_red) ** 2
-        )
+        blue_error_data = np.asarray(blue_error_hdu.data, dtype=np.float32)
+        red_error_data = np.asarray(red_error_hdu.data, dtype=np.float32)
+        if contsub_space == "linear":
+            continuum_error_data = np.sqrt(
+                (blue_error_data * weight_blue) ** 2 + (red_error_data * weight_red) ** 2
+            )
+        else:
+            with np.errstate(divide="ignore", invalid="ignore"):
+                blue_log_error = np.abs((blue_error_data / blue_data) / np.log(10))
+                red_log_error = np.abs((red_error_data / red_data) / np.log(10))
+                continuum_error_log = np.sqrt(
+                    (blue_log_error * weight_blue) ** 2
+                    + (red_log_error * weight_red) ** 2
+                )
+                continuum_error_data = continuum_data * np.log(10) * continuum_error_log
+            continuum_error_data[~np.isfinite(continuum_error_data)] = 0.0
         contsub_error_data = np.sqrt(
             np.asarray(narrow_error_hdu.data, dtype=np.float32) ** 2 + continuum_error_data**2
         )
@@ -102,7 +126,10 @@ def linear_continuum_subtract(
         ):
             hdu.header["CONTSUB"] = (True, "Produced by hstha_contsubpipe_extended")
             hdu.header["CSPROD"] = (product, "Continuum-subtraction error product")
-            hdu.header["CSSPACE"] = ("linear", "Continuum interpolation space")
+            hdu.header["CSSPACE"] = (contsub_space, "Continuum interpolation space")
+            hdu.header["CSBLUE"] = (blue_filter, "Blue continuum filter")
+            hdu.header["CSRED"] = (red_filter, "Red continuum filter")
+            hdu.header["CSNB"] = (narrow_filter, "Narrowband filter")
             hdu.header["CSWBLUE"] = (weight_blue, "Blue continuum weight")
             hdu.header["CSWRED"] = (weight_red, "Red continuum weight")
             hdu.header["BUNIT"] = ("1e-20 erg/s/cm2/A/pixel", "PHOTFLAM-scaled error")

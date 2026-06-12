@@ -22,6 +22,7 @@ def output_path(
     image_set: ImageSet,
     config_dir: str | Path = DEFAULT_CONFIG_DIR,
     product: str | None = None,
+    contsub_space: str = "linear",
 ) -> Path:
     """Resolve one output path from ``files.yaml``."""
 
@@ -34,7 +35,7 @@ def output_path(
                 "narrow_filter": image_set.narrow_filter,
                 "blue_filter": image_set.blue_filter,
                 "red_filter": image_set.red_filter,
-                "contsub_space": "linear",
+                "contsub_space": str(contsub_space).lower(),
                 "product": product_name,
             },
             config_dir=config_dir,
@@ -49,19 +50,46 @@ def plan_output_paths(context: PipelineContext) -> None:
         raise ValueError("Cannot plan outputs before inputs are resolved")
 
     image_set = context.image_set
-    context.contsub_file = output_path("outputs.contsub", image_set, config_dir=context.config_dir)
+    contsub_space = str(context.settings.get("contsub_space", "linear")).lower()
+    if contsub_space not in {"linear", "log"}:
+        raise ValueError(
+            f"Unsupported contsub_space {contsub_space!r}; expected 'linear' or 'log'"
+        )
+    context.contsub_file = output_path(
+        "outputs.contsub",
+        image_set,
+        config_dir=context.config_dir,
+        contsub_space=contsub_space,
+    )
     context.continuum_file = output_path(
-        "outputs.continuum", image_set, config_dir=context.config_dir
+        "outputs.continuum",
+        image_set,
+        config_dir=context.config_dir,
+        contsub_space=contsub_space,
     )
     context.contsub_error_file = output_path(
-        "outputs.contsub_error", image_set, config_dir=context.config_dir
+        "outputs.contsub_error",
+        image_set,
+        config_dir=context.config_dir,
+        contsub_space=contsub_space,
     )
     context.continuum_error_file = output_path(
-        "outputs.continuum_error", image_set, config_dir=context.config_dir
+        "outputs.continuum_error",
+        image_set,
+        config_dir=context.config_dir,
+        contsub_space=contsub_space,
     )
-    context.halpha_file = output_path("outputs.halpha", image_set, config_dir=context.config_dir)
+    context.halpha_file = output_path(
+        "outputs.halpha",
+        image_set,
+        config_dir=context.config_dir,
+        contsub_space=contsub_space,
+    )
     context.halpha_error_file = output_path(
-        "outputs.halpha_error", image_set, config_dir=context.config_dir
+        "outputs.halpha_error",
+        image_set,
+        config_dir=context.config_dir,
+        contsub_space=contsub_space,
     )
 
 

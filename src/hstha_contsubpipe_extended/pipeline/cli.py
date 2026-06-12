@@ -23,7 +23,7 @@ def print_results(results: Sequence[ContsubResult]) -> None:
 def main(argv: Sequence[str] | None = None) -> int:
     """Command-line entry point."""
 
-    parser = argparse.ArgumentParser(description="Run linear HST H-alpha continuum subtraction.")
+    parser = argparse.ArgumentParser(description="Run configured HST H-alpha continuum subtraction.")
     parser.add_argument(
         "--config-dir", default=DEFAULT_CONFIG_DIR, help="Directory containing YAML config files."
     )

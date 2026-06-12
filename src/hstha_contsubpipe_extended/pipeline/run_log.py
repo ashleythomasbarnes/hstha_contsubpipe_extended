@@ -236,6 +236,7 @@ def render_text_log(audit: RunAudit) -> str:
                 "hdu_index",
                 "require_errors",
                 "write_continuum",
+                "contsub_space",
                 "nii_to_halpha",
                 "output_unit",
                 "overwrite",
