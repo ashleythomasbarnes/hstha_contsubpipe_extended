@@ -88,7 +88,7 @@ galaxies:
   - ngc1546
   - ngc1637
   - ngc1808
-  - ngc2283
+  # - ngc2283
   - ngc2835
   - ngc2997e
   - ngc3137
@@ -175,7 +175,6 @@ overrides:
     ngc1365:
       contsub_space: "log"
       nii_to_halpha: 0.25
-      search_galaxy: "ngc1365n"
       preferred_instruments: ["uvis"]
       narrow_filters: ["f657n"]
       background_corrections:
@@ -401,3 +400,7 @@ overrides:
     ngc685:
       f657n_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc685/uvis657n_17457_17502/ngc685_uvis_f657n_exp_drc_sci.fits"
       f657n_error_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc685/uvis657n_17457_17502/ngc685_uvis_f657n_err_drc_wht.fits"
+
+    ngc4569:
+      f657n_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc4569/uvisf657n/ngc4569_uvis_f657n_exp_drc_sci.fits"
+      f657n_error_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc4569/uvisf657n/ngc4569_uvis_f657n_err_drc_wht.fits"
