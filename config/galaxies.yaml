@@ -33,6 +33,8 @@ defaults:
   nii_to_halpha: 0.25
   output_unit: "erg/s/cm2/arcsec2"
 
+# HST subfield run targets such as ngc628c/ngc2997w are valid here; foreground
+# extinction sample-table lookup falls back to the base galaxy for c/e/n/s/w suffixes.
 galaxies:
   - ic5332
   - ngc1097

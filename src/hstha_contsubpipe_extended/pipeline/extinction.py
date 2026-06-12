@@ -68,6 +68,19 @@ def normalize_galaxy_name(name: Any) -> str:
     return text
 
 
+def sample_table_candidate_names(name: Any) -> list[str]:
+    """Return sample-table lookup candidates, exact first."""
+
+    normalized = normalize_galaxy_name(name)
+    candidates = [normalized]
+
+    match = re.fullmatch(r"([a-z]+[0-9]+)([censw])", normalized)
+    if match:
+        candidates.append(match.group(1))
+
+    return candidates
+
+
 def foreground_ebv(
     galaxy: str,
     settings: Mapping[str, Any],
@@ -90,13 +103,19 @@ def foreground_ebv(
     name_column = str(ext_cfg.get("galaxy_column", "name"))
     ebv_column = str(ext_cfg.get("ebv_column", "mwext_sf11"))
     sample_name = str(settings.get("sample_name", galaxy))
-    wanted = normalize_galaxy_name(sample_name)
+    candidate_names = sample_table_candidate_names(sample_name)
 
     names = [normalize_galaxy_name(value) for value in table[name_column]]
-    matches = [idx for idx, name in enumerate(names) if name == wanted]
-    if not matches:
-        raise ValueError(f"{galaxy}: no sample-table row found for sample_name={sample_name!r}")
-    return float(table[ebv_column][matches[0]])
+    for candidate_name in candidate_names:
+        matches = [idx for idx, name in enumerate(names) if name == candidate_name]
+        if matches:
+            return float(table[ebv_column][matches[0]])
+
+    attempted = ", ".join(repr(candidate_name) for candidate_name in candidate_names)
+    raise ValueError(
+        f"{galaxy}: no sample-table row found for sample_name={sample_name!r}; "
+        f"attempted {attempted}"
+    )
 
 
 def apply_foreground_extinction_to_hdu_pair(

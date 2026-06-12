@@ -249,8 +249,10 @@ foreground_extinction:
 
 The code reads E(B-V), applies a CCM89 foreground correction at each filter's
 resolved pivot wavelength, and propagates the same correction to the error
-maps. If a galaxy uses a subfield name such as `ngc628c`, set `sample_name`
-under that galaxy's override so the sample-table row can be found.
+maps. Common HST subfield suffixes such as `ngc628c`, `ngc628e`, `ngc2997w`,
+`ngc1234n`, and `ngc3521s` automatically fall back to the base sample-table
+row. Set `sample_name` under a galaxy override only for unusual aliases that
+cannot be resolved this way.
 
 ### Bandpasses
 
