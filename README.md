@@ -115,6 +115,7 @@ load_errors
 preprocess
 resolve_bandpasses
 calibrate_flux_density
+apply_background_corrections
 apply_foreground_extinction
 subtract_continuum
 build_products
@@ -203,6 +204,15 @@ overrides:
     nii_to_halpha: 0.15
     narrowband_widths:
       f657n: 121.0
+
+  ngc1365:
+    background_corrections:
+      f555w:
+        uvis: -777.32
+      f657n:
+        uvis: 520.94
+      f814w:
+        uvis: -687.02
 ```
 
 Use filter-specific keys for exact files:
@@ -301,12 +311,15 @@ For each galaxy, the default stage sequence:
 3. Converts exact zero science pixels to NaN and crops all images to remove
    NaN padding around the narrowband image.
 4. Converts inverse-variance maps to 1-sigma errors with `sqrt(1 / weight)`.
-5. Converts science and error images to flux density with
-   `data * PHOTFLAM * 1e20`.
-6. Applies the configured foreground extinction correction.
-7. Resolves pivot wavelengths and the narrowband width from the configured HST
+5. Resolves pivot wavelengths and the narrowband width from the configured HST
    filter table/curves, falling back to FITS headers if needed.
-8. Computes a continuum estimate at the narrowband pivot wavelength. The
+6. Converts science and error images to flux density with
+   `data * PHOTFLAM * 1e20`.
+7. Adds any configured signed background corrections. Values are specified in
+   `1e-20 erg/s/cm2/A/arcsec2` and converted to per-pixel flux density using
+   the FITS WCS pixel area before being added to the science HDU.
+8. Applies the configured foreground extinction correction.
+9. Computes a continuum estimate at the narrowband pivot wavelength. The
    default `contsub_space: "linear"` setting uses:
 
 ```text
@@ -327,17 +340,17 @@ weight_f555w = abs(pivot_f814w - pivot_narrow) / abs(pivot_f555w - pivot_f814w)
 weight_f814w = abs(pivot_f555w - pivot_narrow) / abs(pivot_f555w - pivot_f814w)
 ```
 
-9. Propagates the continuum and continuum-subtracted errors in quadrature.
-10. Converts continuum-subtracted, continuum, and error maps from
+10. Propagates the continuum and continuum-subtracted errors in quadrature.
+11. Converts continuum-subtracted, continuum, and error maps from
    `erg/s/cm2/A/pixel` to integrated flux using the resolved narrowband width
    or a `narrowband_widths` override.
-11. Divides by the FITS WCS pixel area so the final maps are surface brightness
+12. Divides by the FITS WCS pixel area so the final maps are surface brightness
     in `1e-20 erg/s/cm2/arcsec2` by default. Set `output_unit:
     "erg/s/cm2/pixel"` in `config/galaxies.yaml` to keep per-pixel fluxes.
-12. Writes the raw continuum-subtracted flux products and the fixed-[NII]
+13. Writes the raw continuum-subtracted flux products and the fixed-[NII]
     H-alpha products.
-13. Writes `contsub_manifest.csv` summarizing inputs, outputs, weights, and failures.
-14. Writes timestamped text and JSONL audit logs under `logs/`, including dry runs.
+14. Writes `contsub_manifest.csv` summarizing inputs, outputs, weights, and failures.
+15. Writes timestamped text and JSONL audit logs under `logs/`, including dry runs.
 
 The code checks that all three image arrays have the same shape. If a target
 fails because shapes differ, that galaxy needs a later reprojection step before

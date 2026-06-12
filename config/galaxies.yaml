@@ -103,6 +103,15 @@ galaxies:
   - ngc7456
 
 overrides:
+    ngc1365:
+      background_corrections:
+        f555w:
+          uvis: -777.32
+        f657n:
+          uvis: 520.94
+        f814w:
+          uvis: -687.02
+
     ngc1097:
       f657n_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc1097/uvisf657n_25aug2025/ngc1097_uvis_f657n_exp_drc_sci.fits"
       f657n_error_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc1097/uvisf657n_25aug2025/ngc1097_uvis_f657n_err_drc_wht.fits"

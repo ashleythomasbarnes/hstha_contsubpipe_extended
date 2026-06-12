@@ -107,6 +107,7 @@ class PipelineContext:
     nii_to_halpha: float | None = None
     narrowband_width: float | None = None
     bandpass_source: str = ""
+    background_corrections: list[dict[str, Any]] = field(default_factory=list)
     stage_events: list[dict[str, Any]] = field(default_factory=list)
 
     @property

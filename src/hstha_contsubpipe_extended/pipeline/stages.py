@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Protocol, Sequence
+from typing import Any, Callable, Mapping, Protocol, Sequence
 
 from astropy.io import fits
 
@@ -11,6 +11,7 @@ from .bandpass import annotate_bandpass, bandpass_for_image, load_bandpass_catal
 from .discovery import resolve_image_set
 from .extinction import apply_foreground_extinction_to_hdu_pair, foreground_ebv
 from .fits_ops import (
+    apply_background_correction,
     convert_hst_count_rate_to_flux_density,
     convert_inverse_variance_to_error,
     preprocess_hst_data,
@@ -52,6 +53,7 @@ _DEFAULT_STAGE_NAMES = [
     "preprocess",
     "resolve_bandpasses",
     "calibrate_flux_density",
+    "apply_background_corrections",
     "apply_foreground_extinction",
     "subtract_continuum",
     "build_products",
@@ -258,6 +260,90 @@ def _stage_calibrate_flux_density(context: PipelineContext) -> None:
         )
 
 
+def _background_correction_for(
+    corrections: Mapping[str, Any],
+    galaxy: str,
+    filter_name: str,
+    instrument: str,
+) -> float | None:
+    """Return a configured background correction for one selected filter/instrument."""
+
+    filter_key = filter_name.lower()
+    if filter_key not in corrections:
+        return None
+
+    instrument_corrections = corrections[filter_key]
+    if not isinstance(instrument_corrections, Mapping):
+        raise ValueError(
+            f"{galaxy}: background_corrections.{filter_key} must map instruments to values"
+        )
+
+    instrument_key = instrument.lower()
+    normalized = {str(key).lower(): value for key, value in instrument_corrections.items()}
+    if instrument_key not in normalized:
+        raise ValueError(
+            f"{galaxy}: background correction configured for {filter_key}, but not for "
+            f"resolved instrument {instrument_key!r}"
+        )
+
+    try:
+        return float(normalized[instrument_key])
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f"{galaxy}: background correction for {filter_key}/{instrument_key} must be numeric"
+        ) from exc
+
+
+def _stage_apply_background_corrections(context: PipelineContext) -> None:
+    corrections = context.settings.get("background_corrections", {}) or {}
+    if not corrections:
+        return
+    if not isinstance(corrections, Mapping):
+        raise ValueError(f"{context.galaxy}: background_corrections must be a mapping")
+
+    image_set = _require_image_set(context)
+    if (
+        context.narrow_hdu is None
+        or context.blue_hdu is None
+        or context.red_hdu is None
+        or context.narrow_bandpass is None
+        or context.blue_bandpass is None
+        or context.red_bandpass is None
+    ):
+        raise ValueError("Calibrated science HDUs and bandpasses are required for correction")
+
+    selected = (
+        ("blue", image_set.blue_filter, context.blue_hdu, context.blue_bandpass),
+        ("narrow", image_set.narrow_filter, context.narrow_hdu, context.narrow_bandpass),
+        ("red", image_set.red_filter, context.red_hdu, context.red_bandpass),
+    )
+    for label, filter_name, hdu, bandpass in selected:
+        instrument = str(bandpass.get("instrument", "")).lower()
+        offset = _background_correction_for(
+            corrections=corrections,
+            galaxy=context.galaxy,
+            filter_name=filter_name,
+            instrument=instrument,
+        )
+        if offset is None:
+            continue
+
+        corrected_hdu, record = apply_background_correction(
+            hdu=hdu,
+            surface_brightness_offset=offset,
+            filter_name=filter_name,
+            instrument=instrument,
+        )
+        record["image"] = label
+        context.background_corrections.append(record)
+        if label == "blue":
+            context.blue_hdu = corrected_hdu
+        elif label == "narrow":
+            context.narrow_hdu = corrected_hdu
+        else:
+            context.red_hdu = corrected_hdu
+
+
 def _stage_apply_foreground_extinction(context: PipelineContext) -> None:
     if context.narrow_hdu is None or context.blue_hdu is None or context.red_hdu is None:
         raise ValueError("Science HDUs must be calibrated before foreground extinction")
@@ -337,6 +423,7 @@ def _register_builtin_stages() -> None:
         ("preprocess", _stage_preprocess),
         ("resolve_bandpasses", _stage_resolve_bandpasses),
         ("calibrate_flux_density", _stage_calibrate_flux_density),
+        ("apply_background_corrections", _stage_apply_background_corrections),
         ("apply_foreground_extinction", _stage_apply_foreground_extinction),
         ("subtract_continuum", _stage_subtract_continuum),
         ("build_products", _stage_build_products),

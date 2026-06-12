@@ -141,6 +141,7 @@ def context_audit_record(
             "nii_to_halpha": result.nii_to_halpha,
             "narrowband_width": result.narrowband_width,
             "bandpass_source": result.bandpass_source,
+            "background_corrections": list(context.background_corrections),
         },
     }
 
@@ -165,6 +166,7 @@ def failed_galaxy_audit_record(galaxy: str, result: ContsubResult, exception: Ba
             "nii_to_halpha": result.nii_to_halpha,
             "narrowband_width": result.narrowband_width,
             "bandpass_source": result.bandpass_source,
+            "background_corrections": [],
         },
     }
 
@@ -237,6 +239,7 @@ def render_text_log(audit: RunAudit) -> str:
                 "require_errors",
                 "write_continuum",
                 "contsub_space",
+                "background_corrections",
                 "nii_to_halpha",
                 "output_unit",
                 "overwrite",
