@@ -108,6 +108,7 @@ galaxies:
   - ngc6300
   - ngc7456
   - ngc7496
+  - ngc7793
 
 overrides:
     ic5332:
@@ -132,7 +133,7 @@ overrides:
         f555w:
           acs: -428.03
         f658n:
-          acs: -509.67
+          acs: -509.69
         f814w:
           acs: -337.13
 
@@ -262,11 +263,11 @@ overrides:
       f658n_error_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc2835/uvisf658n_match/ngc2835_uvis_f658n_err_drc_wht.fits"
       background_corrections:
         f555w:
-          uvis: -465.89
+          uvis: -464.07
         f658n:
-          uvis: 751.65
+          uvis: -1510.46
         f814w:
-          uvis: -342.54
+          uvis: -352.36
 
     ngc3351:
       contsub_space: "log"
