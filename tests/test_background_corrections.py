@@ -1,8 +1,10 @@
 from pathlib import Path
+import warnings
 
 import numpy as np
 import pytest
 from astropy.io import fits
+from astropy.io.fits.verify import VerifyWarning
 
 from hstha_contsubpipe_extended.pipeline.fits_ops import apply_background_correction
 from hstha_contsubpipe_extended.pipeline.models import ImageSet, PipelineContext
@@ -64,6 +66,19 @@ def test_apply_background_correction_converts_arcsec2_offset_to_pixel_offset():
     assert corrected.header["CSBKG"] is True
     assert corrected.header["CSBKGSA"] == -5.0
     assert corrected.header["CSBKGPP"] == -10.0
+
+
+def test_apply_background_correction_header_comments_fit_fits_cards():
+    with warnings.catch_warnings(record=True) as records:
+        warnings.simplefilter("always")
+        apply_background_correction(
+            hdu=_hdu([[10.0]]),
+            surface_brightness_offset=123.456,
+            filter_name="f555w",
+            instrument="uvis",
+        )
+
+    assert not any(isinstance(record.message, VerifyWarning) for record in records)
 
 
 def test_background_correction_stage_applies_matching_science_offsets_only():

@@ -238,12 +238,12 @@ def apply_background_correction(
     out.header["CSBKGI"] = (instrument, "Background correction instrument")
     out.header["CSBKGSA"] = (
         offset_arcsec2,
-        "Background offset in 1e-20 erg/s/cm2/A/arcsec2",
+        "Bkg offset per arcsec2",
     )
     out.header["CSBKGPA"] = (pix_area, "Pixel area used for background correction")
     out.header["CSBKGPP"] = (
         offset_pixel,
-        "Subtracted background in 1e-20 erg/s/cm2/A/pixel",
+        "Subtracted bkg per pixel",
     )
     return out, {
         "filter": filter_name,
