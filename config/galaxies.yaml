@@ -298,6 +298,8 @@ overrides:
       nii_to_halpha: -0.06
       preferred_instruments: ["uvis"]
       narrow_filters: ["f657n"]
+      f657n_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc4254/uvisf657n_match/ngc4254_uvis_f657n_match_exp_drc_sci.fits"
+      f657n_error_file: "/scigarfs/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images/ngc4254/ngc4254_uvis_f657n_match_err_drc_wht.fits"
       background_corrections:
         f555w:
           uvis: -87.41
