@@ -57,7 +57,7 @@ def test_apply_background_correction_converts_arcsec2_offset_to_pixel_offset():
         instrument="uvis",
     )
 
-    np.testing.assert_allclose(corrected.data, [[0.0, 10.0]])
+    np.testing.assert_allclose(corrected.data, [[20.0, 30.0]])
     assert record["offset_arcsec2"] == -5.0
     assert record["pixel_area_arcsec2"] == 2.0
     assert record["offset_pixel"] == -10.0
@@ -79,9 +79,9 @@ def test_background_correction_stage_applies_matching_science_offsets_only():
 
     _stage_apply_background_corrections(context)
 
-    np.testing.assert_allclose(context.blue_hdu.data, [[8.0]])
-    np.testing.assert_allclose(context.narrow_hdu.data, [[24.0]])
-    np.testing.assert_allclose(context.red_hdu.data, [[24.0]])
+    np.testing.assert_allclose(context.blue_hdu.data, [[12.0]])
+    np.testing.assert_allclose(context.narrow_hdu.data, [[16.0]])
+    np.testing.assert_allclose(context.red_hdu.data, [[36.0]])
     np.testing.assert_allclose(context.blue_error_hdu.data, [[1.0]])
     np.testing.assert_allclose(context.narrow_error_hdu.data, [[2.0]])
     np.testing.assert_allclose(context.red_error_hdu.data, [[3.0]])

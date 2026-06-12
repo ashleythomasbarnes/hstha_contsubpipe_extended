@@ -113,14 +113,14 @@ def apply_background_correction(
     filter_name: str,
     instrument: str,
 ) -> tuple[fits.PrimaryHDU, dict[str, float | str]]:
-    """Add a signed flux-density background offset to one science HDU."""
+    """Subtract a flux-density background estimate from one science HDU."""
 
     offset_arcsec2 = float(surface_brightness_offset)
     pix_area = pixel_area_arcsec2(hdu.header)
     offset_pixel = offset_arcsec2 * pix_area
 
     out = hdu.copy()
-    out.data = np.asarray(out.data, dtype=np.float32) + offset_pixel
+    out.data = np.asarray(out.data, dtype=np.float32) - offset_pixel
     out.header["CSBKG"] = (True, "Background correction applied")
     out.header["CSBKGF"] = (filter_name, "Background correction filter")
     out.header["CSBKGI"] = (instrument, "Background correction instrument")
@@ -131,7 +131,7 @@ def apply_background_correction(
     out.header["CSBKGPA"] = (pix_area, "Pixel area used for background correction")
     out.header["CSBKGPP"] = (
         offset_pixel,
-        "Background offset in 1e-20 erg/s/cm2/A/pixel",
+        "Subtracted background in 1e-20 erg/s/cm2/A/pixel",
     )
     return out, {
         "filter": filter_name,

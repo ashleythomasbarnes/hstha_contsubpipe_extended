@@ -315,9 +315,10 @@ For each galaxy, the default stage sequence:
    filter table/curves, falling back to FITS headers if needed.
 6. Converts science and error images to flux density with
    `data * PHOTFLAM * 1e20`.
-7. Adds any configured signed background corrections. Values are specified in
+7. Subtracts any configured background corrections as `data_bgsub = data - b`.
+   Values are specified in
    `1e-20 erg/s/cm2/A/arcsec2` and converted to per-pixel flux density using
-   the FITS WCS pixel area before being added to the science HDU.
+   the FITS WCS pixel area before subtraction from the science HDU.
 8. Applies the configured foreground extinction correction.
 9. Computes a continuum estimate at the narrowband pivot wavelength. The
    default `contsub_space: "linear"` setting uses:
