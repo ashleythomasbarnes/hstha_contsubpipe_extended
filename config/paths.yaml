@@ -20,10 +20,12 @@ data:
   scratch: "data/scratch"      # temporary outputs or caches
 
 hst:
-  image_root: "/lustre/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images"
+  # image_root: "/lustre/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/HST_reduced_images"
+  image_root: "/lustre/opsw/work/abarnes/phangs/HST_WORK/scratch/HUBBLE_AND_CLUSTER_TECHNICAL_WORK/HST_image_products/MAUVE_HST"
 
 contsub:
-  output_root: "/lustre/opsw/work/abarnes/phangs/HST_WORK/data_contsub"
+  # output_root: "/lustre/opsw/work/abarnes/phangs/HST_WORK/data_contsub"
+  output_root: "/lustre/opsw/work/abarnes/phangs/HST_WORK/data_contsub_mauve"
 
 notebooks: "notebooks"         # Jupyter notebooks
 figures: "figures"             # plots for papers

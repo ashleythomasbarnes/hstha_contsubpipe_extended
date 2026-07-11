@@ -35,82 +35,94 @@ defaults:
 
 # HST subfield run targets such as ngc628c/ngc2997w are valid here; foreground
 # extinction sample-table lookup falls back to the base galaxy for c/e/n/s/w suffixes.
+# galaxies:
+#   - ic5332
+#   - ngc1097
+#   - ngc1365
+#   - ngc1511
+#   - ngc1559
+#   - ngc1672
+#   - ngc1809
+#   - ngc2566
+#   - ngc2903
+#   - ngc2997w
+#   - ngc3351
+#   - ngc3511
+#   - ngc3621
+#   - ngc4298
+#   - ngc4424
+#   - ngc4536
+#   - ngc4571
+#   - ngc4689
+#   - ngc4826
+#   - ngc5042
+#   - ngc5530
+#   - ngc628c
+#   - ngc6744
+#   - ic1954
+#   - ngc1068
+#   - ngc1300
+#   - ngc1385
+#   - ngc1512
+#   - ngc1566
+#   - ngc1792
+#   - ngc2090
+#   - ngc2775
+#   - ngc2997
+#   - ngc3059
+#   - ngc3368
+#   - ngc3521s
+#   - ngc3627
+#   - ngc4303
+#   - ngc4496a
+#   - ngc4548
+#   - ngc4579
+#   - ngc4694
+#   - ngc4941
+#   - ngc5068
+#   - ngc5643
+#   - ngc628e
+#   - ngc685
+#   - ic5273
+#   - ngc1087
+#   - ngc1317
+#   - ngc1433
+#   - ngc1546
+#   - ngc1637
+#   - ngc1808
+#   - ngc2835
+#   - ngc2997e
+#   - ngc3137
+#   - ngc3507
+#   - ngc3596
+#   - ngc4254
+#   - ngc4321
+#   - ngc4535
+#   - ngc4569
+#   - ngc4654
+#   - ngc4731
+#   - ngc4951
+#   - ngc5248
+#   - ngc628
+#   - ngc6300
+#   - ngc7456
+#   - ngc7496
+#   - ngc7793
+
+# MAUVE
 galaxies:
-  - ic5332
-  - ngc1097
-  - ngc1365
-  - ngc1511
-  - ngc1559
-  - ngc1672
-  - ngc1809
-  - ngc2566
-  - ngc2903
-  - ngc2997w
-  - ngc3351
-  - ngc3511
-  - ngc3621
-  - ngc4298
-  - ngc4424
-  - ngc4536
-  - ngc4571
-  - ngc4689
-  - ngc4826
-  - ngc5042
-  - ngc5530
-  - ngc628c
-  - ngc6744
-  - ic1954
-  - ngc1068
-  - ngc1300
-  - ngc1385
-  - ngc1512
-  - ngc1566
-  - ngc1792
-  - ngc2090
-  - ngc2775
-  - ngc2997
-  - ngc3059
-  - ngc3368
-  - ngc3521s
-  - ngc3627
-  - ngc4303
-  - ngc4496a
-  - ngc4548
-  - ngc4579
-  - ngc4694
-  - ngc4941
-  - ngc5068
-  - ngc5643
-  - ngc628e
-  - ngc685
-  - ic5273
-  - ngc1087
-  - ngc1317
-  - ngc1433
-  - ngc1546
-  - ngc1637
-  - ngc1808
-  # - ngc2283
-  - ngc2835
-  - ngc2997e
-  - ngc3137
-  - ngc3507
-  - ngc3596
-  - ngc4254
-  - ngc4321
-  - ngc4535
-  - ngc4569
-  - ngc4654
-  - ngc4731
-  - ngc4951
-  - ngc5248
-  - ngc628
-  - ngc6300
-  - ngc7456
-  - ngc7496
-  - ngc7793
+  - ngc4698
+  - ngc4501
+  - ngc4501n
+  - ngc4501s
+  - ngc4192s
+  - ngc4351
+  - ngc4394
 
 overrides:
+    ngc4192s:
+      narrow_filters: ["f656n"]
+
     ic5332:
       contsub_space: "log"
       nii_to_halpha: 0.11
