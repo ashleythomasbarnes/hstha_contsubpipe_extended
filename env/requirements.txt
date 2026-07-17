@@ -15,5 +15,6 @@ ipykernel
 
 # Configuration / utilities
 pyyaml
+requests
 tqdm
 python-dotenv

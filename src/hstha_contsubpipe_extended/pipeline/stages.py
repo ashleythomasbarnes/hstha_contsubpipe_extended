@@ -9,7 +9,7 @@ from astropy.io import fits
 
 from .bandpass import annotate_bandpass, bandpass_for_image, load_bandpass_catalog
 from .discovery import resolve_image_set
-from .extinction import apply_foreground_extinction_to_hdu_pair, foreground_ebv
+from .extinction import apply_foreground_extinction_to_hdu_pair, resolve_foreground_extinction
 from .fits_ops import (
     apply_background_correction,
     convert_hst_count_rate_to_flux_density,
@@ -350,9 +350,10 @@ def _stage_apply_foreground_extinction(context: PipelineContext) -> None:
     if context.narrow_hdu is None or context.blue_hdu is None or context.red_hdu is None:
         raise ValueError("Science HDUs must be calibrated before foreground extinction")
 
-    ebv = foreground_ebv(context.galaxy, context.settings, context.params)
+    resolution = resolve_foreground_extinction(context.galaxy, context.settings, context.params)
+    context.foreground_extinction = resolution.as_dict()
+    ebv = resolution.ebv
     context.extinction_ebv = ebv
-    r_v = float((context.params.get("foreground_extinction", {}) or {}).get("r_v", 3.1))
     if ebv is None:
         return
 
@@ -361,7 +362,13 @@ def _stage_apply_foreground_extinction(context: PipelineContext) -> None:
         (context.blue_hdu, context.blue_error_hdu),
         (context.red_hdu, context.red_error_hdu),
     ):
-        apply_foreground_extinction_to_hdu_pair(band_hdu, err_hdu, ebv=ebv, r_v=r_v)
+        apply_foreground_extinction_to_hdu_pair(
+            band_hdu,
+            err_hdu,
+            ebv=ebv,
+            r_v=resolution.r_v,
+            resolution=resolution,
+        )
 
 
 def _stage_match_spatial_coverage(context: PipelineContext) -> None:

@@ -247,12 +247,43 @@ foreground_extinction:
   r_v: 3.1
 ```
 
-The code reads E(B-V), applies a CCM89 foreground correction at each filter's
-resolved pivot wavelength, and propagates the same correction to the error
-maps. Common HST subfield suffixes such as `ngc628c`, `ngc628e`, `ngc2997w`,
-`ngc1234n`, and `ngc3521s` automatically fall back to the base sample-table
-row. Set `sample_name` under a galaxy override only for unusual aliases that
-cannot be resolved this way.
+The foreground-extinction lookup order is:
+
+1. An `ebv` value supplied in the galaxy settings.
+2. An exact or base-name match in the configured sample table.
+3. The NED `OverviewOfObject` API when the sample table has no matching row.
+4. No correction, with a warning and an audit-log reason, when NED fails or
+   does not return a usable `a_lambda_V` value.
+
+NED's Landolt V extinction is converted with `E(B-V) = a_lambda_V / r_v` and
+then passed through the same CCM89 correction used for sample-table values.
+The returned UKIRT K value (`a_lambda_K`) is retained as provenance but does
+not change the extinction law. NED requests have a 30-second timeout and are
+not retried.
+
+For sample-table and NED lookups, common HST subfield suffixes such as
+`ngc628c`, `ngc628e`, `ngc2997w`, `ngc1234n`, and `ngc3521s` try the exact name
+and then the base galaxy. Set `sample_name` under a galaxy override only for
+unusual aliases that cannot be resolved this way. A missing or unreadable
+sample-table file is still a configuration error rather than a reason to query
+NED.
+
+The code applies the correction at each filter's resolved pivot wavelength and
+propagates the same factor to its error map. Corrected science HDUs contain the
+following provenance headers:
+
+- `CSEBV`: E(B-V) used by CCM89.
+- `CSEAV`: A(V), either returned by NED or derived as `r_v * E(B-V)`.
+- `CSEAK`: NED A(K), when available.
+- `CSERV`: configured R(V).
+- `CSEXTSRC`: `override`, `sample_table`, or `ned`.
+- `CSEXTARG`: the sample-table or NED name that resolved successfully.
+- `CSEXTCOR`: the band-specific multiplicative correction factor.
+
+The JSONL and text run audits also include a structured
+`derived.foreground_extinction` record. It stores the lookup status and source,
+requested and resolved names, A(V), A(K), E(B-V), R(V), and the reason for any
+skipped correction.
 
 ### Bandpasses
 
