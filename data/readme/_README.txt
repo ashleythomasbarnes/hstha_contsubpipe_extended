@@ -37,7 +37,8 @@ into two processing families using the suffix in the filename:
   hstha_contsubpipe_extended workflow.
 - Produced continuum, continuum-subtracted, and [NII]-corrected H-alpha flux
   maps for each successfully processed target.
-- Produced propagated uncertainty maps for each released product type.
+- Produced propagated uncertainty maps for each released product type where
+  suitable input error maps were available.
 - Applied zero-to-NaN preprocessing before continuum subtraction.
 - Removed narrowband padding and masked products to the common valid coverage
   of the HST broadband and narrowband images.
@@ -88,7 +89,8 @@ Example files include:
 - ngc628e_f658n_halpha_flux_nii_corr_log.fits
 - ngc7496_f657n_halpha_flux_nii_corr_log.fits
 
-Each science product has a matching *_err_* uncertainty product.
+Each science product normally has a matching *_err_* uncertainty product,
+except for ngc5194 as described below.
 
 ## Configuration Summary
 
@@ -207,6 +209,7 @@ Linear-space product roots in this release configuration are:
 - ngc4941
 - ngc4951
 - ngc5042
+- ngc5194
 - ngc5248
 - ngc5530
 - ngc5643
@@ -216,6 +219,14 @@ Linear-space product roots in this release configuration are:
 - ngc685
 - ngc7456
 - ngc7793
+
+### NGC 5194 data provenance and errors
+
+The F555W and F814W broadband data and the F658N narrowband data for ngc5194
+were not reduced as part of PHANGS. They were taken from the HST Legacy Archive
+Hubble Heritage ACS/WFC mosaic of M51. Error maps are not provided for these
+data by the HST archive, and uncertainties are therefore not propagated here
+for ngc5194.
 
 ## Notes
 

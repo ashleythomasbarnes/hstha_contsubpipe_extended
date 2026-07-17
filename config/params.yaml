@@ -22,7 +22,7 @@ verbosity: 1
 
 foreground_extinction:
   enabled: true
-  sample_table_path: "/lustre/opsw/work/abarnes/phangs/HST_WORK/hstha_contsubpipe_extended/data/sample_table/phangs_sample_table_v1p6.fits"
+  sample_table_path: "/Users/abarnes/Library/CloudStorage/Dropbox/Data/Extragalactic/catalogues/sample_table/phangs_sample_table_v1p6.fits"
   galaxy_column: "name"
   ebv_column: "mwext_sf11"
   r_v: 3.1
@@ -30,7 +30,7 @@ foreground_extinction:
 bandpass:
   # The old pipeline used get_bandpassinfo(rootdir_bp) to read every *.dat
   # filter curve into a dictionary keyed by instrument/filter, e.g. UVIS_F657N.
-  filter_root: "/lustre/opsw/work/abarnes/phangs/HST_WORK/hstha_contsubpipe_extended/data/hst_filters/"
+  filter_root: "/Users/abarnes/Library/CloudStorage/Dropbox/Data/Extragalactic/misc/hst_filters"
 
   # Defaults:
   # - pivot_source: use the filter curve pivot wavelength.
