@@ -207,6 +207,7 @@ Linear-space product roots in this release configuration are:
 - ngc4941
 - ngc4951
 - ngc5042
+- ngc5134
 - ngc5248
 - ngc5530
 - ngc5643
